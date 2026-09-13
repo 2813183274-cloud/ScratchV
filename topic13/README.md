@@ -35,24 +35,46 @@
 | 黑盒样例 | `tests/fixtures/asm_peephole/` |
 | 性能基准 | `benchmarks/bench_asm_peephole.py` |
 | 前后对比脚本 | `benchmarks/compare_peephole.py` |
+| CI | `.github/workflows/ci.yml` → job **`topic13-peephole`**（`ubuntu-latest`） |
 
 ---
 
 ## 交付摘要
 
-- 默认规则：**8 条**（已移除不健全的「假交换删除」）
-- 测试：**84 / 84 PASSED**
+- 默认规则：**8 条**（假交换删除已移除；mv 链仅在中间寄存器局部死时应用）
+- 测试：**89 / 89 PASSED**（含 CLI / mv 链活跃性）
 - 效果：DSL 基准约 -0.43%；合成高冗余约 -25%；综合样例约 -46%
+- PR：[#39](https://github.com/ScratchV-Compiler/ScratchV/pull/39)
 
-### 一键复验
+### CLI
+
+```bash
+python -m scratchv.backend.asm_peephole --list-rules
+python -m scratchv.backend.asm_peephole input.s -o out.s --report
+python -m scratchv.backend.asm_peephole input.s -o out.s --json
+python -m scratchv.backend.asm_peephole input.s -o out.s --json-output report.json --report
+```
+
+### 一键复验 / 本地 CI
 
 ```bash
 cd /home/z/ScratchV-main   # 或你的仓库根目录
 source .venv/bin/activate
+make ci-peephole
+# 或：
 python -m pytest tests/test_asm_peephole*.py -q
 python benchmarks/compare_peephole.py --markdown benchmark_reports/peephole_compare.md
 ```
 
+GitHub Actions：PR 到 `main` 会跑 job **`topic13-peephole`**（不依赖 self-hosted mirror）。
+
+### Review 后续（已知）
+
+- [x] mv 链：中间寄存器局部活跃则拒绝优化（CI 有正/负例）
+- [x] `--reg-alloc linear` 真正走 LinearScan（不再先 greedy）
+- [x] CLI：`--list-rules` 无需 dummy input；支持 `--json` / `--json-output`
+- [x] CI：`topic13-peephole` job + `make ci-peephole`
+- [ ] assembler/simulator 端到端语义等价、spill 压力矩阵、随机生成（可小组协作）
 ---
 
 ## 阅读顺序建议

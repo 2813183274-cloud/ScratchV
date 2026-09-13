@@ -403,20 +403,24 @@ class CompilerDriver:
         selector = InstructionSelector(program)
         machine_instrs = selector.run()
 
-        alloc = RegisterAllocator(machine_instrs, mode=self.config.reg_alloc)
-        allocated = alloc.run()
-
-        # Optional: use linear-scan instead
+        # Linear-scan path: allocate on *unallocated* MachineInstrs.
+        # (Previously RegisterAllocator ran first with mode="linear", which
+        # fell through to greedy — so LinearScan never saw virtual regs.)
         if self.config.reg_alloc == "linear":
             from scratchv.backend.regalloc_linear import (
                 LinearScanAllocator, block_from_machine_instrs,
             )
-            ls_insts = block_from_machine_instrs(allocated)
+            ls_insts = block_from_machine_instrs(machine_instrs)
             lsa = LinearScanAllocator()
             intervals = lsa.compute_live_intervals(ls_insts)
             lsa.allocate(intervals)
-            # Use linear-scan allocated code as assembly directly
             return lsa.get_allocated_code(ls_insts)
+
+        mode = self.config.reg_alloc if self.config.reg_alloc in (
+            "naive", "greedy",
+        ) else "greedy"
+        alloc = RegisterAllocator(machine_instrs, mode=mode)
+        allocated = alloc.run()
 
         emitter = AsmEmitter(allocated)
         return emitter.emit()
@@ -436,7 +440,20 @@ class CompilerDriver:
         scheduler = DAGScheduler(dag)
         machine_instrs = scheduler.run()
 
-        alloc = RegisterAllocator(machine_instrs, mode=self.config.reg_alloc)
+        if self.config.reg_alloc == "linear":
+            from scratchv.backend.regalloc_linear import (
+                LinearScanAllocator, block_from_machine_instrs,
+            )
+            ls_insts = block_from_machine_instrs(machine_instrs)
+            lsa = LinearScanAllocator()
+            intervals = lsa.compute_live_intervals(ls_insts)
+            lsa.allocate(intervals)
+            return lsa.get_allocated_code(ls_insts)
+
+        mode = self.config.reg_alloc if self.config.reg_alloc in (
+            "naive", "greedy",
+        ) else "greedy"
+        alloc = RegisterAllocator(machine_instrs, mode=mode)
         allocated = alloc.run()
 
         emitter = AsmEmitter(allocated)

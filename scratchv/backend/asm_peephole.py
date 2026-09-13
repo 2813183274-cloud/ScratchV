@@ -250,9 +250,9 @@ def _default_rules() -> list[PeepholeRule]:
             register_constraints=[],
         ),
 
-        # Rule 4: mv a, b; mv c, a -> mv c, b (skip intermediate register a)
-        # Unsound if `a` is live after the pair; callers/tests must treat as
-        # best-effort without liveness analysis.
+        # Rule 4: mv a, b; mv c, a -> mv c, b
+        # Only applied when `a` is not live after the pair (local scan).
+        # Full CFG liveness is still TODO; crossing labels is refused.
         PeepholeRule(
             name="redundant mv elimination",
             pattern=["mv", "mv"],
@@ -377,15 +377,16 @@ def _match_rule(
         if ops[0] not in ("x0", "zero") or ops[1] not in ("x0", "zero"):
             return None
 
-    # mv-chain rule must not match swap-shaped pairs: mv x,y; mv y,x
-    # (that pattern is not a no-op and must be left untouched).
+    # mv-chain: require well-formed operands; refuse swap-shaped pairs.
     if rule.name == "redundant mv elimination":
         if (
-            len(window) >= 2
-            and len(window[0].operands) >= 2
-            and window[1].operands
-            and window[1].operands[0] == window[0].operands[1]
+            len(window) < 2
+            or len(window[0].operands) < 2
+            or len(window[1].operands) < 2
         ):
+            return None
+        # mv x,y; mv y,x is not a no-op — leave untouched.
+        if window[1].operands[0] == window[0].operands[1]:
             return None
 
     # addi+addi: both immediates must parse and sum must fit simm12
@@ -422,6 +423,46 @@ def _match_rule(
             return None  # handled by addi-zero self elimination
 
     return bindings
+
+
+_STORE_OPS = frozenset({"sb", "sh", "sw", "sd", "fsd", "fsw"})
+_CTRL_OPS = frozenset({"ret", "ecall", "ebreak"})
+
+
+def _operand_refers_to(op: str, reg: str) -> bool:
+    """True if operand is *reg* or a mem form like ``12(reg)``."""
+    if op == reg:
+        return True
+    if "(" in op and op.endswith(")"):
+        inner = op[op.rfind("(") + 1:-1].strip()
+        return inner == reg
+    return False
+
+
+def _is_reg_live_after(lines: list[AsmLine], start: int, reg: str) -> bool:
+    """Conservative local liveness: is *reg* used before being redefined?
+
+    Stops at a bare label (treat as live — unknown across blocks).
+    """
+    for line in lines[start:]:
+        if line.opcode is None:
+            if line.label:
+                return True  # cross-block: refuse
+            continue
+        op = line.opcode
+        ops = line.operands
+        if op in _CTRL_OPS:
+            return False
+        if op in _STORE_OPS or op.startswith("b") or op in ("jal", "jalr", "j"):
+            if any(_operand_refers_to(o, reg) for o in ops):
+                return True
+            continue
+        # Default ALU/move: ops[0] def, rest uses
+        if any(_operand_refers_to(o, reg) for o in ops[1:]):
+            return True
+        if ops and ops[0] == reg:
+            return False  # redefined without a prior use
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -514,17 +555,25 @@ class AsmPeepholeOptimizer:
                     window = lines[i:i + window_size]
                     bindings = _match_rule(rule, window)
 
-                    if bindings is not None:
-                        # Apply replacement
-                        replacement_lines = self._apply_replacement(
-                            rule, window, bindings)
-                        new_lines.extend(replacement_lines)
-                        self._total_matches[rule.name] += 1
-                        total_changes += 1
-                        i += window_size
-                        matched = True
-                        changed = True
-                        break
+                    if bindings is None:
+                        continue
+
+                    # Rule 4 safety: intermediate must be dead after the pair.
+                    if rule.name == "redundant mv elimination":
+                        mid = window[0].operands[0]
+                        if _is_reg_live_after(lines, i + window_size, mid):
+                            continue
+
+                    # Apply replacement
+                    replacement_lines = self._apply_replacement(
+                        rule, window, bindings)
+                    new_lines.extend(replacement_lines)
+                    self._total_matches[rule.name] += 1
+                    total_changes += 1
+                    i += window_size
+                    matched = True
+                    changed = True
+                    break
 
                 if not matched:
                     new_lines.append(lines[i])
@@ -684,13 +733,14 @@ class AsmPeepholeOptimizer:
 def main() -> None:
     """CLI entry point for the peephole optimizer."""
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(
         description="RISC-V Assembly Peephole Optimizer",
     )
     parser.add_argument(
-        "input", type=str,
-        help="Input assembly file (.s)",
+        "input", type=str, nargs="?", default=None,
+        help="Input assembly file (.s); not required with --list-rules",
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
@@ -698,7 +748,16 @@ def main() -> None:
     )
     parser.add_argument(
         "--report", action="store_true",
-        help="Print optimization report",
+        help="Print optimization report to stderr",
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Print machine-readable report JSON to stdout "
+             "(assembly still follows --output / default)",
+    )
+    parser.add_argument(
+        "--json-output", type=str, default=None,
+        help="Write report JSON to this path",
     )
     parser.add_argument(
         "--list-rules", action="store_true",
@@ -712,11 +771,29 @@ def main() -> None:
             print(f"  {rule.name}")
         return
 
+    if not args.input:
+        parser.error("input is required unless --list-rules is set")
+
     with open(args.input, "r") as f:
         asm_text = f.read()
 
     opt = AsmPeepholeOptimizer()
     result, changes = opt.optimize(asm_text)
+
+    report_obj = {
+        "input": args.input,
+        "instructions_before": opt.instructions_before,
+        "instructions_after": opt.instructions_after,
+        "instructions_saved": opt.instructions_saved,
+        "rule_applications": changes,
+        "fixed_point_passes": opt.iterations,
+        "total_matches": opt.total_matches,
+    }
+
+    if args.json_output:
+        with open(args.json_output, "w") as f:
+            json.dump(report_obj, f, indent=2)
+            f.write("\n")
 
     if args.report:
         print(opt.report(), file=sys.stderr)
@@ -726,6 +803,17 @@ def main() -> None:
             f"({opt.instructions_before} -> {opt.instructions_after})",
             file=sys.stderr,
         )
+
+    if args.json:
+        print(json.dumps(report_obj, indent=2))
+        if args.output:
+            with open(args.output, "w") as f:
+                f.write(result)
+            print(
+                f"Optimized assembly written to {args.output}",
+                file=sys.stderr,
+            )
+        return
 
     if args.output:
         with open(args.output, "w") as f:

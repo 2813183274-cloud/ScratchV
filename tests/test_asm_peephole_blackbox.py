@@ -115,13 +115,47 @@ class TestPeepholeCLI:
         assert "8" in proc.stdout
 
     def test_cli_list_rules(self):
-        # argparse currently requires a positional input even for --list-rules
-        proc = _run_cli(["--list-rules", str(FIXTURES / "input_no_change.s")])
+        proc = _run_cli(["--list-rules"])
         assert proc.returncode == 0, proc.stderr
         assert "addi+addi fusion" in proc.stdout
         assert "li+addi fusion" in proc.stdout
         assert "nop elimination" in proc.stdout
         assert "redundant mv pair elimination" not in proc.stdout
+
+    def test_cli_list_rules_no_input_needed(self):
+        proc = _run_cli(["--list-rules"])
+        assert proc.returncode == 0
+        assert proc.stdout.strip()
+
+    def test_cli_json_report(self, tmp_path):
+        inp = FIXTURES / "input_addi_fusion.s"
+        out = tmp_path / "out.s"
+        proc = _run_cli([str(inp), "-o", str(out), "--json"])
+        assert proc.returncode == 0, proc.stderr
+        import json
+        data = json.loads(proc.stdout)
+        assert data["instructions_saved"] >= 1
+        assert data["rule_applications"] >= 1
+        assert "addi+addi fusion" in data["total_matches"]
+        assert "8" in out.read_text()
+
+    def test_cli_json_output_file(self, tmp_path):
+        inp = FIXTURES / "input_li_addi.s"
+        out = tmp_path / "out.s"
+        report = tmp_path / "report.json"
+        proc = _run_cli([
+            str(inp), "-o", str(out),
+            "--json-output", str(report), "--report",
+        ])
+        assert proc.returncode == 0, proc.stderr
+        import json
+        data = json.loads(report.read_text())
+        assert data["instructions_before"] >= data["instructions_after"]
+        assert "Instructions saved" in proc.stderr
+
+    def test_cli_missing_input_without_list_rules_fails(self):
+        proc = _run_cli([])
+        assert proc.returncode != 0
 
 
 @pytest.mark.blackbox

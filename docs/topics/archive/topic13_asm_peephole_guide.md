@@ -5,8 +5,9 @@
 > **Topic index**: [../../../topic13/README.md](../../../topic13/README.md)  
 > **Human design doc**: [../13-窥孔优化器-设计文档.md](../13-窥孔优化器-设计文档.md)  
 > **Compare report**: [../../../benchmark_reports/peephole_compare.md](../../../benchmark_reports/peephole_compare.md)  
-> **Last verified**: 2026-08-01 — **83/83** tests pass; **8** default rules  
-> **Do NOT re-add**: `redundant mv pair elimination` (`mv x,y; mv y,x → delete`) — unsound
+> **Last verified**: 2026-09-13 — peephole tests + CLI `--json` / `--list-rules`  
+> **Do NOT re-add**: `redundant mv pair elimination` (`mv x,y; mv y,x → delete`) — unsound  
+> **PR**: https://github.com/ScratchV-Compiler/ScratchV/pull/39
 
 ---
 
@@ -124,7 +125,7 @@ If `_parse_imm` fails after a match (should be rare), `_apply_replacement` retur
 | 1 | `addi+addi fusion` | addi, addi | addi {rd} {rs1} {imm_sum} | (0,1,0),(0,1,1); sum ∈ [-2048,2047] |
 | 2 | `li+addi fusion` | li, addi | li {rd} {imm_sum} | (0,1,0),(0,1,1); imms parseable |
 | 3 | `beq zero-zero to jump` | beq | j {label} | ops[0,1] ∈ {x0, zero} |
-| 4 | `redundant mv elimination` | mv, mv | mv {rd1} {rs2} | (0,1,1); **excludes** swap shape; mid may stay live |
+| 4 | `redundant mv elimination` | mv, mv | mv {rd1} {rs2} | (0,1,1); excludes swap; **local dead mid only** |
 | 5 | `addi-zero self elimination` | addi | [] | (0,0,1); imm==0 |
 | 6 | `addi-zero to mv` | addi | mv {rd} {rs} | imm==0; rd≠rs |
 | 7 | `nop elimination` | nop | [] | — |
@@ -191,7 +192,7 @@ Prefer also adding a `TestSemanticEquivalence` case when the rewrite changes val
 cd /home/z/ScratchV-main   # or your repo root
 source .venv/bin/activate
 
-# All Topic-13 peephole tests (83 cases)
+# All Topic-13 peephole tests
 python -m pytest tests/test_asm_peephole*.py -v --tb=short
 
 # By category
@@ -200,12 +201,16 @@ python -m pytest tests/ -m integration -k peephole -v
 python -m pytest tests/ -m stress      -k peephole -v
 python -m pytest tests/ -m blackbox    -k peephole -v
 
+# CLI
+python -m scratchv.backend.asm_peephole --list-rules
+python -m scratchv.backend.asm_peephole input.s -o out.s --report --json
+
 # Benchmark / before-after (optional)
 python benchmarks/bench_asm_peephole.py
 python benchmarks/compare_peephole.py --markdown benchmark_reports/peephole_compare.md
 ```
 
-**Expected**: **83 passed**; `--list-rules` must **not** print `redundant mv pair elimination`.
+**Expected**: all peephole tests pass; `--list-rules` needs **no** input file; must **not** print `redundant mv pair elimination`.
 
 ### Test file map
 
@@ -214,7 +219,7 @@ python benchmarks/compare_peephole.py --markdown benchmark_reports/peephole_comp
 | `unit` | `tests/test_asm_peephole.py` | parse, match, 8 rules, semantic equivalence, labels/hex |
 | `integration` | `tests/test_asm_peephole_integration.py` | CompilerDriver / passes / flag off |
 | `stress` | `tests/test_asm_peephole_stress.py` | scale / hex batch / labels under load |
-| `blackbox` | `tests/test_asm_peephole_blackbox.py` | CLI + fixtures; swap-delete absent |
+| `blackbox` | `tests/test_asm_peephole_blackbox.py` | CLI `--list-rules` / `--json` / fixtures |
 
 Fixtures: `tests/fixtures/asm_peephole/*.s`  
 (incl. `input_hex_fusion.s`, `input_addi_overflow.s`, `input_nop_mv_self.s`, `input_mv_chain.s`)
@@ -232,12 +237,12 @@ Fixtures: `tests/fixtures/asm_peephole/*.s`
 | addi imm overflow | RV addi imm is simm12 | Refuse fusion when sum out of range |
 | hex immediates | Must use `_parse_imm` | Do not fold with bare `int()` |
 | Labels | Mid-window label = refuse; lead label = preserve | Cover with tests |
-| mv-chain liveness | Rule 4 best-effort without liveness | Document; see `test_mv_chain_unsound_when_mid_live` |
+| mv-chain liveness | Local dead-check via `_is_reg_live_after` | Live mid / before label → no rewrite |
 | x0 vs zero | Only beq special-cases aliases | Normalize if adding more zero checks |
 | Infinite loop | Bad rules can oscillate | `max_iterations=50` + terminate tests |
 | Greedy order | Rule A may block Rule B | Reorder or merge; document dependency |
 | `_split_operands` | Defined but unused | Dead code; ignore or cleanup PR |
-| CLI `--list-rules` | Still needs positional `input` | Known argparse limitation |
+| CLI `--list-rules` | Optional `input` | `nargs='?'`; also `--json` / `--json-output` |
 
 ---
 
@@ -249,13 +254,14 @@ Fixtures: `tests/fixtures/asm_peephole/*.s`
 | `test_li_addi_fusion` | li+addi → single li |
 | `test_beq_zero_jump` / `test_beq_zero_alias` | beq x0/zero → j |
 | `test_mv_swap_pair_not_deleted` | swap-shaped pair **preserved** (`changes == 0`) |
-| `test_redundant_mv_elimination` | mv chain shortened |
+| `test_redundant_mv_elimination` | mv chain shortened when mid dead |
 | `test_addi_fusion_hex_immediates` | `0x10+0x20` → `48`, no `(` garbage |
 | `test_label_preserved_on_fusion` / `_on_nop_deletion` | labels survive |
 | `test_mid_label_blocks_fusion` | labeled 2nd insn blocks pair |
-| `test_mv_chain_unsound_when_mid_live` | documents Rule 4 liveness gap |
+| `test_mv_chain_refused_when_mid_live` | live mid → **no** Rule 4 rewrite |
 | `TestSemanticEquivalence.*` | register-state checks for sound rewrites |
-| `test_cli_list_rules` | removed rule name absent from stdout |
+| `test_cli_list_rules` | no dummy input; removed rule absent |
+| `test_cli_json_report` | `--json` report fields |
 
 When adding rules: input asm → `optimize()` → assert tokens + `changes`, and prefer a semantic check.
 
@@ -265,11 +271,11 @@ When adding rules: input asm → `optimize()` → assert tokens + `changes`, and
 
 ```
 asm_peephole.py
-  ├── stdlib: re, sys, dataclasses, typing
+  ├── stdlib: re, sys, dataclasses, typing, json (CLI)
   └── (no scratchv internal imports)
 
 Consumers:
-  ├── scratchv/compiler.py (_run_asm_passes)
+  ├── scratchv/compiler.py (_run_asm_passes; reg_alloc=linear → LinearScan)
   ├── scratchv/backend/__init__.py (re-export AsmPeepholeOptimizer)
   ├── tests/test_asm_peephole*.py
   ├── benchmarks/bench_asm_peephole.py
@@ -282,14 +288,15 @@ Consumers:
 
 Before marking task complete:
 
-- [ ] `python -m pytest tests/test_asm_peephole*.py -q` — all green (expect 83 unless count intentionally changed)
+- [ ] `python -m pytest tests/test_asm_peephole*.py -q` — all green
 - [ ] New rule has ≥1 dedicated test (+ semantic case if values change)
 - [ ] `rule.name` unique among `_default_rules()`
 - [ ] If immediates folded: use `_parse_imm` + simm12 check where needed
 - [ ] Labels: mid-window refuse / lead preserve / delete keeps bare label
 - [ ] Did **not** re-introduce fake-swap delete
+- [ ] mv-chain only when mid is locally dead
 - [ ] `report()` / `total_matches` reflect the new rule
-- [ ] Updated design doc §6 + this guide + `topic13/README.md` counts if rules/tests changed
+- [ ] Updated design doc §6 + this guide + `topic13/README.md` if rules/tests changed
 - [ ] Did not break IR peephole (`optimizer/peephole.py`)
 
 ---

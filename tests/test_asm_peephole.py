@@ -482,14 +482,16 @@ class TestSemanticEquivalence:
         _assert_regs_equal(asm, out, {}, ["t0", "t1"])
 
     def test_mv_chain_preserves_destination_when_mid_dead(self):
-        """When only t2 is observed, chain rewrite is value-correct for t2."""
+        """Dead intermediate: rewrite is fully register-state equivalent."""
         asm = "  li t1, 9\n  mv t0, t1\n  mv t2, t0\n"
         out, n = AsmPeepholeOptimizer().optimize(asm)
         assert n == 1
+        assert "mv t2, t1" in out
+        # Mid t0 is dead after the pair — full state may omit t0 write.
         _assert_regs_equal(asm, out, {}, ["t2", "t1"])
 
-    def test_mv_chain_unsound_when_mid_live(self):
-        """Document best-effort limitation: intermediate t0 may be clobbered."""
+    def test_mv_chain_refused_when_mid_live(self):
+        """Live intermediate must block Rule 4 (correctness, not just docs)."""
         asm = (
             "  li t1, 9\n"
             "  mv t0, t1\n"
@@ -497,14 +499,22 @@ class TestSemanticEquivalence:
             "  add t3, t0, t2\n"
         )
         out, n = AsmPeepholeOptimizer().optimize(asm)
-        assert n == 1
-        pre = _exec_straightline(asm, {})
-        post = _exec_straightline(out, {})
-        # Destination of chain stays correct…
-        assert pre["t2"] == post["t2"] == 9
-        # …but live intermediate differs without liveness analysis.
-        assert pre["t0"] == 9
-        assert post.get("t0", 0) != pre["t0"]
+        assert n == 0
+        assert "mv t0, t1" in out
+        assert "mv t2, t0" in out
+        _assert_regs_equal(asm, out, {}, ["t0", "t1", "t2", "t3"])
+
+    def test_mv_chain_refused_before_label(self):
+        """Crossing a label is treated as live (conservative)."""
+        asm = (
+            "  mv t0, t1\n"
+            "  mv t2, t0\n"
+            "L:\n"
+            "  add t3, t0, t2\n"
+        )
+        out, n = AsmPeepholeOptimizer().optimize(asm)
+        assert n == 0
+        assert out.count("mv") == 2
 
 
 if __name__ == "__main__":
