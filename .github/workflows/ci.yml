@@ -117,6 +117,24 @@ jobs:
         run: |
           $PY -m pytest tests/test_pr37_regression.py -v --tb=short
 
+      - name: Run topic13 peephole regressions
+        run: |
+          $PY -m pytest tests/test_asm_peephole*.py -v --tb=short
+
+      - name: Run topic13 peephole CLI smoke
+        run: |
+          $PY -m scratchv.backend.asm_peephole --list-rules | tee /tmp/peephole_rules.txt
+          grep -q "addi+addi fusion" /tmp/peephole_rules.txt
+          if grep -q "redundant mv pair elimination" /tmp/peephole_rules.txt; then
+            echo "unsound rule must not be listed" >&2
+            exit 1
+          fi
+          $PY -m scratchv.backend.asm_peephole \
+            tests/fixtures/asm_peephole/input_addi_fusion.s \
+            -o /tmp/peephole_out.s --report --json | tee /tmp/peephole_report.json
+          $PY -c "import json; d=json.load(open('/tmp/peephole_report.json')); assert d['instructions_saved']>=1"
+          grep -q "8" /tmp/peephole_out.s
+
       - name: Generate test visualization page
         if: github.ref == 'refs/heads/main'
         run: |
@@ -133,66 +151,6 @@ jobs:
             benchmark_reports/test_results.xml
             benchmark_reports/tests.html
           retention-days: 30
-
-
-  # ═════════════════════════════════════════════════════════════════════════
-  # Topic 13：汇编窥孔（ubuntu-latest，fork PR 也可跑）
-  # ═════════════════════════════════════════════════════════════════════════
-  topic13-peephole:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install ScratchV
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install "pytest>=7,<10"
-
-      - name: Peephole unit / integration / stress / blackbox
-        run: |
-          python -m pytest tests/test_asm_peephole*.py -v --tb=short \
-            --junit-xml=peephole_test_results.xml
-
-      - name: Peephole CLI smoke
-        run: |
-          python -m scratchv.backend.asm_peephole --list-rules | tee /tmp/peephole_rules.txt
-          grep -q "addi+addi fusion" /tmp/peephole_rules.txt
-          if grep -q "redundant mv pair elimination" /tmp/peephole_rules.txt; then
-            echo "unsound rule must not be listed" >&2
-            exit 1
-          fi
-          python -m scratchv.backend.asm_peephole \
-            tests/fixtures/asm_peephole/input_addi_fusion.s \
-            -o /tmp/peephole_out.s --report --json | tee /tmp/peephole_report.json
-          python -c "import json; d=json.load(open('/tmp/peephole_report.json')); assert d['instructions_saved']>=1"
-          grep -q "8" /tmp/peephole_out.s
-
-      - name: Peephole compare script (DSL)
-        run: |
-          mkdir -p benchmark_reports
-          python benchmarks/compare_peephole.py \
-            --json benchmark_reports/peephole_compare.json \
-            --markdown benchmark_reports/peephole_compare.md
-
-      - name: Upload peephole CI artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: topic13-peephole-reports
-          path: |
-            peephole_test_results.xml
-            benchmark_reports/peephole_compare.json
-            benchmark_reports/peephole_compare.md
-          if-no-files-found: ignore
-          retention-days: 14
 
   # ═════════════════════════════════════════════════════════════════════════
   # 模型性能测试：ONNX模型管线 + DSL用例 + CNN RISC-V编译
@@ -280,6 +238,14 @@ jobs:
             benchmarks/cases/const_merge_feature.asm \
             --json benchmark_reports/const_merge_report.json \
             --markdown benchmark_reports/const_merge_report.md
+
+      # ── 3.1.2 课题13：窥孔前后对比报告 ─────────────────────────────
+      - name: Topic 13 peephole compare report
+        run: |
+          mkdir -p benchmark_reports
+          $PY benchmarks/compare_peephole.py \
+            --json benchmark_reports/peephole_compare.json \
+            --markdown benchmark_reports/peephole_compare.md
 
       # ── 3.2 DSL 用例编译 + 模拟基准 ────────────────────────────────────
       - name: DSL case compilation benchmarks
@@ -422,6 +388,11 @@ jobs:
         run: |
           if [ -f benchmark_reports/const_merge_report.md ]; then
             cat benchmark_reports/const_merge_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f benchmark_reports/peephole_compare.md ]; then
+            echo "### Topic 13 Peephole Compare" >> $GITHUB_STEP_SUMMARY
+            head -40 benchmark_reports/peephole_compare.md >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f benchmark_reports/github_summary.md ]; then
