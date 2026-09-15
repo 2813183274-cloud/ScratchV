@@ -1,0 +1,64 @@
+# add_reuse 测试详情
+
+## 基本信息
+
+- 类别: elementwise
+- DSL: `tests/topic06/cases/elementwise/add_reuse.dsl`
+- 描述: Reuse the same intermediate add result on both operands of a second add.
+- 总体状态: PASS
+- 验证模式: both
+
+## 后端能力矩阵
+
+| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败类型 | 错误 |
+|---|---|---|---|---|---|
+| DSLInterpreter | PASS | 10 | True | null | null |
+| TinyFive | PASS | 10 | True | null | null |
+
+- 期望输出: 10
+- 两后端输出一致: True
+- TinyFive 输入 ABI 可用: True
+- TinyFive 输入 ABI 说明: null
+
+## 性能指标
+
+- 静态汇编指令数: 4
+- 编码后机器指令数: 4
+- 代码大小(bytes): 16
+- TinyFive 动态执行指令数: 4
+- TinyFive 分类计数: {'total': 4, 'load': 0, 'store': 0, 'mul': 0, 'add': 3, 'madd': 0, 'branch': 0}
+- 编译耗时(s): 0.106441
+- 解释器耗时(s): 0.163497
+- TinyFive 模拟耗时(s): 0.161178
+- 总耗时(s): 0.880961
+- 基线动态指令数: 4.0
+- 动态指令变化率(%): 0.0
+- 是否退化: False
+
+- Cost model 指标: {'static_asm_instructions': 4, 'machine_instructions': 4, 'code_size_bytes': 16, 'dynamic_instructions': 4.0, 'dynamic_load': 0.0, 'dynamic_store': 0.0, 'dynamic_mul': 0.0, 'dynamic_add': 3.0, 'dynamic_madd': 0.0, 'dynamic_branch': 0.0}
+- Cost model 对比: {'static_asm_instructions': {'current': 4, 'baseline': 4, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'machine_instructions': {'current': 4, 'baseline': 4, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'code_size_bytes': {'current': 16, 'baseline': 16, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_instructions': {'current': 4.0, 'baseline': 4.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_load': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_store': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_mul': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_add': {'current': 3.0, 'baseline': 3.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_madd': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_branch': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}}
+- Cost model 是否退化: False
+
+## 编译信息
+
+- 命令: `'D:\anaconda3\python.exe' -m scratchv.main 'D:\PycharmProjects\ScratchV\ScratchV\tests\topic06\cases\elementwise\add_reuse.dsl' -o 'D:\PycharmProjects\ScratchV\ScratchV\build\topic06\add_reuse.s' --optimize all --emit-register-map 'D:\PycharmProjects\ScratchV\ScratchV\build\topic06\add_reuse.registers.json'`
+- 返回码: 0
+- 编译错误: null
+- 失败日志: null
+- 寄存器映射: `build/topic06/add_reuse.registers.json`
+- 汇编文件: `build/topic06/add_reuse.s`
+
+## 生成汇编
+
+```asm
+.text
+.align 2
+  .globl main
+  .type main, @function
+main:
+.entry:
+    add t2, t0, t1
+    add t3, t2, t2
+    mv a0, t3  # return value
+    jalr zero, ra  # ret
+```

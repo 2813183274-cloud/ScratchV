@@ -1,0 +1,132 @@
+{
+  "mode": "benchmark",
+  "name": "matmul_4x4",
+  "category": "tensor",
+  "path": "tests/topic06/cases/tensor/matmul_4x4.dsl",
+  "status": "FAIL",
+  "description": "Compute a symbolic 4x4 by 4x4 matrix multiplication.",
+  "expected_type": "tensor",
+  "output_dtype": "int32",
+  "output_shape": [
+    4,
+    4
+  ],
+  "expected": [
+    [
+      1,
+      2,
+      3,
+      4
+    ],
+    [
+      5,
+      6,
+      7,
+      8
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      13,
+      14,
+      15,
+      16
+    ]
+  ],
+  "actual": 0,
+  "matched": false,
+  "verification_backend": "both",
+  "interpreter_status": "PASS",
+  "interpreter_actual": [
+    [
+      1,
+      2,
+      3,
+      4
+    ],
+    [
+      5,
+      6,
+      7,
+      8
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      13,
+      14,
+      15,
+      16
+    ]
+  ],
+  "interpreter_matched": true,
+  "interpreter_error": null,
+  "interpreter_failure_kind": null,
+  "interpreter_time_sec": 0.12329240003600717,
+  "backend_outputs_match": null,
+  "tinyfive_status": "UNSUPPORTED",
+  "tinyfive_failure_kind": "input_abi_unsupported",
+  "tinyfive_input_abi_supported": false,
+  "tinyfive_input_abi_reason": "non-scalar TinyFive input ABI is unavailable: A, B",
+  "simulation_error": null,
+  "initial_registers": {},
+  "register_map": "build/topic06/matmul_4x4.registers.json",
+  "backend": "tinyfive",
+  "instr_count": 3,
+  "static_asm_instruction_count": 3,
+  "machine_code_instruction_count": 3,
+  "code_size_bytes": 12,
+  "perf_counters": {
+    "total": 3,
+    "load": 0,
+    "store": 0,
+    "mul": 1,
+    "add": 1,
+    "madd": 0,
+    "branch": 0
+  },
+  "cost_model": {
+    "static_asm_instructions": 3,
+    "machine_instructions": 3,
+    "code_size_bytes": 12,
+    "dynamic_instructions": 3,
+    "dynamic_load": 0,
+    "dynamic_store": 0,
+    "dynamic_mul": 1,
+    "dynamic_add": 1,
+    "dynamic_madd": 0,
+    "dynamic_branch": 0
+  },
+  "cost_model_comparison": {},
+  "cost_model_regressed": null,
+  "compile_returncode": 0,
+  "compile_timed_out": false,
+  "compile_error": null,
+  "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\tensor\\matmul_4x4.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\matmul_4x4.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\matmul_4x4.registers.json'",
+  "compile_log": null,
+  "compile_time_sec": 0.08791819994803518,
+  "simulation_time_sec": 0.1479027000023052,
+  "total_time_sec": 0.3600894999690354,
+  "benchmark_runs": 0,
+  "benchmark_stopped_reason": "benchmark skipped: TinyFive input ABI unsupported",
+  "avg_instr_count": null,
+  "min_instr_count": null,
+  "max_instr_count": null,
+  "ci95_instr_count": null,
+  "baseline_instr_count": null,
+  "delta": null,
+  "delta_pct": null,
+  "threshold_pct": 5.0,
+  "regressed": null,
+  "asm": "build/topic06/matmul_4x4.s",
+  "case_report_md": "benchmark_reports/topic06/cases/tensor-matmul_4x4.md",
+  "case_report_json": "benchmark_reports/topic06/cases/tensor-matmul_4x4.json"
+}

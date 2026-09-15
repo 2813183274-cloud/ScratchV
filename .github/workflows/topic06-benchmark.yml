@@ -43,5 +43,6 @@ jobs:
           path: |
             benchmark_reports/topic06/report.md
             benchmark_reports/topic06/report.json
+            benchmark_reports/topic06/cases/
             benchmark_reports/topic06/failures/
             benchmarks/topic06/baseline.json

@@ -2,6 +2,7 @@ import argparse
 import json
 import math
 import os
+import platform
 import re
 import shlex
 import subprocess
@@ -23,9 +24,16 @@ JSON_REPORT_FILE = REPORT_DIR / "report.json"
 CHART_FILE = REPORT_DIR / "course_report_instructions.png"
 BASELINE_FILE = PROJECT_ROOT / "benchmarks" / "topic06" / "baseline.json"
 FAILURE_DIR = REPORT_DIR / "failures"
+CASE_REPORT_DIR = REPORT_DIR / "cases"
 REGRESSION_THRESHOLD_PCT = 5.0
 COMPILE_TIMEOUT_SEC = 30.0
 SIMULATION_TIMEOUT_SEC = 5.0
+INTERPRETER_TIMEOUT_SEC = 5.0
+
+INTERPRETER_SUPPORTED_OPS = {
+    "add", "sub", "mul", "div", "neg", "exp", "relu", "gelu",
+    "matmul", "dot", "softmax", "maxpool",
+}
 
 
 def run_compile(dsl_file: Path, timeout: float = COMPILE_TIMEOUT_SEC):
@@ -318,6 +326,104 @@ def run_simulation(
         }
 
 
+def interpreter_support_for_source(source: str) -> tuple[bool, str | None]:
+    """Reject syntax that DSLInterpreter currently accepts without executing correctly."""
+    control_flow = re.search(
+        r"^\s*(for|endfor|if|else|endif|while|endwhile)\b",
+        source,
+        flags=re.MULTILINE | re.IGNORECASE,
+    )
+    if control_flow:
+        return False, f"unsupported control flow: {control_flow.group(1).lower()}"
+
+    operations = {
+        match.group(1).lower()
+        for match in re.finditer(r"^\s*\w+\s*=\s*(\w+)\s*\(", source, re.MULTILINE)
+    }
+    unsupported = sorted(operations - INTERPRETER_SUPPORTED_OPS)
+    if unsupported:
+        return False, f"unsupported interpreter operation(s): {', '.join(unsupported)}"
+    return True, None
+
+
+def run_interpreter(
+    dsl_file: Path,
+    inputs: dict,
+    timeout: float = INTERPRETER_TIMEOUT_SEC,
+):
+    """Run the DSL reference interpreter in an isolated process."""
+    source = dsl_file.read_text(encoding="utf-8")
+    supported, reason = interpreter_support_for_source(source)
+    if not supported:
+        return {
+            "success": False,
+            "return_value": None,
+            "backend": "interpreter",
+            "status": "UNSUPPORTED",
+            "error": reason,
+        }
+
+    code = "\n".join([
+        "import json, sys",
+        "from pathlib import Path",
+        "import numpy as np",
+        "from scratchv.verification.verifier import DSLInterpreter",
+        "source = Path(sys.argv[1]).read_text(encoding='utf-8')",
+        "raw_inputs = json.loads(sys.argv[2])",
+        "inputs = {name: np.asarray(value) for name, value in raw_inputs.items()}",
+        "try:",
+        "    value = DSLInterpreter().run(source, inputs)",
+        "    if isinstance(value, np.ndarray):",
+        "        value = value.item() if value.ndim == 0 else value.tolist()",
+        "    elif isinstance(value, np.generic):",
+        "        value = value.item()",
+        "    result = {'success': True, 'return_value': value, "
+        "'backend': 'interpreter', 'status': 'EXECUTED', 'error': None}",
+        "except Exception as exc:",
+        "    result = {'success': False, 'return_value': None, "
+        "'backend': 'interpreter', 'status': 'ERROR', 'error': str(exc)}",
+        "print(json.dumps(result, ensure_ascii=False))",
+    ])
+
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", code, str(dsl_file), json.dumps(inputs)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            cwd=PROJECT_ROOT,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "return_value": None,
+            "backend": "interpreter",
+            "status": "TIMEOUT",
+            "error": f"interpreter timeout after {timeout:.0f}s",
+        }
+
+    if completed.returncode != 0:
+        return {
+            "success": False,
+            "return_value": None,
+            "backend": "interpreter",
+            "status": "ERROR",
+            "error": (completed.stderr or completed.stdout or "interpreter failed").strip(),
+        }
+    try:
+        return json.loads(completed.stdout.strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        return {
+            "success": False,
+            "return_value": None,
+            "backend": "interpreter",
+            "status": "ERROR",
+            "error": f"invalid interpreter output: {exc}",
+        }
+
+
 def values_equal(lhs, rhs):
     if isinstance(lhs, list) and isinstance(rhs, list):
         if len(lhs) != len(rhs):
@@ -326,6 +432,90 @@ def values_equal(lhs, rhs):
     if isinstance(lhs, float) or isinstance(rhs, float):
         return math.isclose(lhs, rhs, rel_tol=1e-7, abs_tol=1e-7)
     return lhs == rhs
+
+
+def tinyfive_input_abi_supported(inputs: dict) -> tuple[bool, str | None]:
+    """Return whether every input can be injected directly into an integer register."""
+    unsupported = []
+    for name, value in inputs.items():
+        if isinstance(value, bool) or isinstance(value, int):
+            continue
+        if isinstance(value, float) and value.is_integer():
+            continue
+        unsupported.append(name)
+    if unsupported:
+        return False, "non-scalar TinyFive input ABI is unavailable: " + ", ".join(unsupported)
+    return True, None
+
+
+def classify_tinyfive_result(
+    compile_result,
+    sim_result,
+    matched,
+    input_abi_supported,
+    metadata_error=None,
+    register_map_error=None,
+):
+    if metadata_error:
+        return "SKIPPED", "metadata_error"
+    if compile_result.returncode == 124:
+        return "SKIPPED", "compile_timeout"
+    if compile_result.returncode != 0:
+        return "SKIPPED", "compile_error"
+    if register_map_error:
+        return "SKIPPED", "register_map_error"
+    if not input_abi_supported:
+        return "UNSUPPORTED", "input_abi_unsupported"
+    if sim_result.get("backend") == "skipped":
+        return "SKIPPED", "backend_not_selected"
+    if sim_result.get("backend") == "timeout":
+        return "TIMEOUT", "simulation_timeout"
+    if not sim_result.get("success"):
+        error = str(sim_result.get("error") or "").lower()
+        if "not installed" in error:
+            return "UNAVAILABLE", "tinyfive_unavailable"
+        if "unsupported" in error or "unknown" in error:
+            return "ERROR", "unsupported_assembly_instruction"
+        if "assembl" in error or "encode" in error:
+            return "ERROR", "assembly_encoding_error"
+        return "ERROR", "simulation_error"
+    if not matched:
+        return "MISMATCH", "result_mismatch"
+    return "PASS", None
+
+
+def count_assembly_instructions(asm_file: Path) -> int | None:
+    if not asm_file.exists():
+        return None
+    try:
+        from scratchv.backend._asm_parser import parse_asm
+
+        return sum(
+            line.opcode is not None and not line.is_directive
+            for line in parse_asm(asm_file.read_text(encoding="utf-8"))
+        )
+    except (OSError, ValueError):
+        return None
+
+
+def summarize_backend_matrix(results):
+    def counts(field):
+        summary = {}
+        for result in results:
+            value = result.get(field) or "UNKNOWN"
+            summary[value] = summary.get(value, 0) + 1
+        return summary
+
+    comparable = [r for r in results if r.get("backend_outputs_match") is not None]
+    return {
+        "interpreter": counts("interpreter_status"),
+        "tinyfive": counts("tinyfive_status"),
+        "cross_backend": {
+            "comparable": len(comparable),
+            "matched": sum(r["backend_outputs_match"] is True for r in comparable),
+            "mismatched": sum(r["backend_outputs_match"] is False for r in comparable),
+        },
+    }
 
 
 def summarize_benchmark_runs(instr_counts):
@@ -368,24 +558,103 @@ def detect_regression(
     }
 
 
+def build_cost_model_metrics(
+    static_asm_instruction_count,
+    sim_result,
+    avg_instr_count=None,
+    avg_perf_counters=None,
+):
+    dynamic_count = avg_instr_count
+    if dynamic_count is None and sim_result.get("success"):
+        dynamic_count = sim_result.get("instr_count")
+    perf_counters = avg_perf_counters or sim_result.get("perf_counters") or {}
+    metrics = {
+        "static_asm_instructions": static_asm_instruction_count,
+        "machine_instructions": sim_result.get("machine_code_instructions"),
+        "code_size_bytes": sim_result.get("code_size_bytes"),
+        "dynamic_instructions": dynamic_count,
+    }
+    for name in ("load", "store", "mul", "add", "madd", "branch"):
+        metrics[f"dynamic_{name}"] = perf_counters.get(name)
+    return metrics
+
+
+def summarize_perf_counters(samples):
+    if not samples:
+        return {}
+    keys = set().union(*(sample.keys() for sample in samples))
+    return {
+        key: sum(float(sample.get(key, 0)) for sample in samples) / len(samples)
+        for key in sorted(keys)
+    }
+
+
+def detect_cost_model_regressions(current, baseline, threshold_pct):
+    comparisons = {}
+    for metric, current_value in current.items():
+        baseline_value = baseline.get(metric)
+        if current_value is None or baseline_value is None:
+            comparisons[metric] = {
+                "current": current_value,
+                "baseline": baseline_value,
+                "delta": None,
+                "delta_pct": None,
+                "regressed": None,
+            }
+            continue
+        delta = current_value - baseline_value
+        if baseline_value == 0:
+            delta_pct = 0.0 if current_value == 0 else None
+            regressed = current_value > 0
+        else:
+            delta_pct = delta / baseline_value * 100.0
+            regressed = delta_pct > threshold_pct
+        comparisons[metric] = {
+            "current": current_value,
+            "baseline": baseline_value,
+            "delta": round(delta, 4),
+            "delta_pct": None if delta_pct is None else round(delta_pct, 4),
+            "regressed": regressed,
+        }
+    return comparisons
+
+
 def load_baseline():
     if not BASELINE_FILE.exists():
         return {}
-    return json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+    payload = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and isinstance(payload.get("cases"), dict):
+        return payload["cases"]
+    return payload
 
 
 def save_baseline(results, preserve_existing=False):
     BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    payload = load_baseline() if preserve_existing else {}
+    cases = load_baseline() if preserve_existing else {}
     for r in results:
-        if r["avg_instr_count"] is None:
+        if (
+            r["avg_instr_count"] is None
+            or r.get("tinyfive_status") != "PASS"
+            or r.get("backend_outputs_match") is False
+        ):
             continue
-        payload[r["name"]] = {
+        cases[r["name"]] = {
             "category": r["category"],
             "avg_instr_count": r["avg_instr_count"],
             "runs": r["benchmark_runs"],
+            "cost_model": r["cost_model"],
         }
-    BASELINE_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload = {
+        "schema_version": 2,
+        "primary_metric": "dynamic_instructions",
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "cases": cases,
+    }
+    BASELINE_FILE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def _markdown_cell(value):
@@ -454,7 +723,7 @@ def generate_unified_report_text_cn(
     lines = [
         "# ScratchV DSL 编译器性能测试报告\n\n",
         "## 测试概览\n\n",
-        f"- Schema 版本: 1\n",
+        f"- Schema 版本: 2\n",
         f"- 运行模式: {mode}\n",
         f"- 类别筛选: {_report_value(selection_category)}\n",
         f"- 名称筛选: {_report_value(selection_filter)}\n",
@@ -495,6 +764,20 @@ def generate_unified_report_text_cn(
             f"{_markdown_cell(result['actual'])} | {result['matched']} | {result['asm']} |\n"
         )
 
+    lines.extend([
+        "\n## 双后端能力矩阵\n\n",
+        "| 用例 | 类别 | DSLInterpreter | TinyFive | TinyFive 失败类型 | 两后端输出一致 | 单用例报告 |\n",
+        "|---|---|---|---|---|---|---|\n",
+    ])
+    for result in results:
+        lines.append(
+            f"| {result['name']} | {result['category']} | "
+            f"{result['interpreter_status']} | {result['tinyfive_status']} | "
+            f"{_report_value(result['tinyfive_failure_kind'])} | "
+            f"{_report_value(result['backend_outputs_match'])} | "
+            f"{result['case_report_md']} |\n"
+        )
+
     if include_chart:
         lines.extend([
             "\n## 性能图表\n\n",
@@ -509,9 +792,20 @@ def generate_unified_report_text_cn(
             f"- 预期输出 ({result['expected_type']}): {result['expected']}\n",
             f"- TinyFive 输出: {result['actual']}\n",
             f"- 输出是否匹配: {result['matched']}\n",
+            f"- DSLInterpreter 状态: {result['interpreter_status']}\n",
+            f"- DSLInterpreter 输出: {result['interpreter_actual']}\n",
+            f"- DSLInterpreter 错误: {_report_value(result['interpreter_error'])}\n",
+            f"- TinyFive 状态: {result['tinyfive_status']}\n",
+            f"- TinyFive 失败类型: {_report_value(result['tinyfive_failure_kind'])}\n",
+            f"- TinyFive 输入 ABI 可用: {result['tinyfive_input_abi_supported']}\n",
+            f"- 两后端输出一致: {_report_value(result['backend_outputs_match'])}\n",
             f"- TinyFive 初始寄存器: {result['initial_registers']}\n",
             f"- 模拟后端: {result['backend']}\n",
             f"- 指令数: {result['instr_count']}\n",
+            f"- 静态汇编指令数: {_report_value(result['static_asm_instruction_count'])}\n",
+            f"- 编码后机器指令数: {_report_value(result['machine_code_instruction_count'])}\n",
+            f"- 代码大小(bytes): {_report_value(result['code_size_bytes'])}\n",
+            f"- TinyFive 分类计数: {result['perf_counters']}\n",
             f"- 编译返回码: {result['compile_returncode']}\n",
             f"- 编译是否超时: {result['compile_timed_out']}\n",
             f"- 编译错误摘要: {_report_value(result['compile_error'])}\n",
@@ -530,6 +824,7 @@ def generate_unified_report_text_cn(
             f"- 性能变化率(%): {_report_value(result['delta_pct'], 2)}\n",
             f"- 性能退化阈值(%): {_report_value(result['threshold_pct'], 2)}\n",
             f"- 是否性能退化: {_report_value(result['regressed'])}\n",
+            f"- Cost model 是否退化: {_report_value(result['cost_model_regressed'])}\n",
             f"- 汇编文件: {result['asm']}\n\n",
         ])
     return "".join(lines)
@@ -568,7 +863,7 @@ def write_unified_html_report_cn(
 <body>
   <h1>ScratchV DSL 编译器性能测试报告</h1>
   <div class="summary">
-    <p>Schema 版本：1，运行模式：{{ mode }}</p>
+    <p>Schema 版本：2，运行模式：{{ mode }}</p>
     <p>类别筛选：{{ fmt(selection_category) }}，名称筛选：{{ fmt(selection_filter) }}</p>
     <p>用例总数：{{ total }}，通过：{{ passed }}，失败：{{ failed }}</p>
     <p>性能退化阈值：{{ fmt(regression_threshold_pct, 2) }}%</p>
@@ -576,7 +871,7 @@ def write_unified_html_report_cn(
   <img src="{{ chart_name }}" alt="课程版指令数图表">
   <div class="table-wrap"><table>
     <thead><tr>
-      <th>用例</th><th>类别</th><th>状态</th><th>编译返回码</th><th>编译日志</th><th>模拟后端</th><th>指令数</th>
+      <th>用例</th><th>类别</th><th>状态</th><th>解释器状态</th><th>TinyFive 状态</th><th>失败类型</th><th>编译返回码</th><th>编译日志</th><th>模拟后端</th><th>指令数</th>
       <th>Benchmark 次数</th><th>Benchmark 停止原因</th><th>平均指令数</th><th>95% 置信区间</th><th>最小</th><th>最大</th>
       <th>编译耗时(s)</th><th>模拟耗时(s)</th><th>总耗时(s)</th>
       <th>基线</th><th>变化量</th><th>变化率(%)</th><th>退化阈值(%)</th><th>是否退化</th>
@@ -585,6 +880,7 @@ def write_unified_html_report_cn(
     <tbody>{% for r in results %}<tr>
       <td>{{ r.name }}</td><td>{{ r.category }}</td>
       <td class="{{ 'pass' if r.status == 'PASS' else 'fail' }}">{{ r.status }}</td>
+      <td>{{ r.interpreter_status }}</td><td>{{ r.tinyfive_status }}</td><td>{{ fmt(r.tinyfive_failure_kind) }}</td>
       <td>{{ r.compile_returncode }}</td><td>{{ fmt(r.compile_log) }}</td>
       <td>{{ r.backend }}</td><td>{{ r.instr_count }}</td>
       <td>{{ fmt(r.benchmark_runs) }}</td><td>{{ fmt(r.benchmark_stopped_reason) }}</td><td>{{ fmt(r.avg_instr_count, 2) }}</td>
@@ -628,7 +924,7 @@ def write_json_report(
 ):
     mode = results[0]["mode"] if results else "normal"
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "mode": mode,
         "report_level": "full" if full_report else "light",
         "regression_threshold_pct": regression_threshold_pct,
@@ -642,6 +938,7 @@ def write_json_report(
             "passed": passed,
             "failed": failed,
         },
+        "backend_matrix": summarize_backend_matrix(results),
         "results": results,
     }
     JSON_REPORT_FILE.write_text(
@@ -649,6 +946,77 @@ def write_json_report(
         encoding="utf-8",
     )
     return JSON_REPORT_FILE
+
+
+def write_case_reports(results):
+    CASE_REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    for result in results:
+        report_stem = f"{result['category']}-{result['name']}"
+        markdown_path = CASE_REPORT_DIR / f"{report_stem}.md"
+        json_path = CASE_REPORT_DIR / f"{report_stem}.json"
+        result["case_report_md"] = _report_path(markdown_path)
+        result["case_report_json"] = _report_path(json_path)
+
+        asm_text = ""
+        asm_path = PROJECT_ROOT / result["asm"]
+        if asm_path.exists():
+            asm_text = asm_path.read_text(encoding="utf-8")
+
+        markdown_path.write_text("".join([
+            f"# {result['name']} 测试详情\n\n",
+            "## 基本信息\n\n",
+            f"- 类别: {result['category']}\n",
+            f"- DSL: `{result['path']}`\n",
+            f"- 描述: {result['description']}\n",
+            f"- 总体状态: {result['status']}\n",
+            f"- 验证模式: {result['verification_backend']}\n\n",
+            "## 后端能力矩阵\n\n",
+            "| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败类型 | 错误 |\n",
+            "|---|---|---|---|---|---|\n",
+            f"| DSLInterpreter | {result['interpreter_status']} | "
+            f"{_markdown_cell(result['interpreter_actual'])} | {result['interpreter_matched']} | "
+            f"{_report_value(result['interpreter_failure_kind'])} | "
+            f"{_markdown_cell(_report_value(result['interpreter_error']))} |\n",
+            f"| TinyFive | {result['tinyfive_status']} | "
+            f"{_markdown_cell(result['actual'])} | {result['matched']} | "
+            f"{_report_value(result['tinyfive_failure_kind'])} | "
+            f"{_markdown_cell(_report_value(result['simulation_error']))} |\n\n",
+            f"- 期望输出: {result['expected']}\n",
+            f"- 两后端输出一致: {_report_value(result['backend_outputs_match'])}\n",
+            f"- TinyFive 输入 ABI 可用: {result['tinyfive_input_abi_supported']}\n",
+            f"- TinyFive 输入 ABI 说明: {_report_value(result['tinyfive_input_abi_reason'])}\n\n",
+            "## 性能指标\n\n",
+            f"- 静态汇编指令数: {_report_value(result['static_asm_instruction_count'])}\n",
+            f"- 编码后机器指令数: {_report_value(result['machine_code_instruction_count'])}\n",
+            f"- 代码大小(bytes): {_report_value(result['code_size_bytes'])}\n",
+            f"- TinyFive 动态执行指令数: {result['instr_count']}\n",
+            f"- TinyFive 分类计数: {result['perf_counters']}\n",
+            f"- 编译耗时(s): {result['compile_time_sec']:.6f}\n",
+            f"- 解释器耗时(s): {result['interpreter_time_sec']:.6f}\n",
+            f"- TinyFive 模拟耗时(s): {result['simulation_time_sec']:.6f}\n",
+            f"- 总耗时(s): {result['total_time_sec']:.6f}\n",
+            f"- 基线动态指令数: {_report_value(result['baseline_instr_count'])}\n",
+            f"- 动态指令变化率(%): {_report_value(result['delta_pct'])}\n",
+            f"- 是否退化: {_report_value(result['regressed'])}\n\n",
+            f"- Cost model 指标: {result['cost_model']}\n",
+            f"- Cost model 对比: {result['cost_model_comparison']}\n",
+            f"- Cost model 是否退化: {_report_value(result['cost_model_regressed'])}\n\n",
+            "## 编译信息\n\n",
+            f"- 命令: `{result['compile_command']}`\n",
+            f"- 返回码: {result['compile_returncode']}\n",
+            f"- 编译错误: {_report_value(result['compile_error'])}\n",
+            f"- 失败日志: {_report_value(result['compile_log'])}\n",
+            f"- 寄存器映射: `{result['register_map']}`\n",
+            f"- 汇编文件: `{result['asm']}`\n\n",
+            "## 生成汇编\n\n",
+            "```asm\n",
+            asm_text.rstrip(),
+            "\n```\n",
+        ]), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(result, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
 
 def write_report(
@@ -661,6 +1029,7 @@ def write_report(
     full_report=False,
 ):
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    write_case_reports(results)
     chart_path = write_chart(results) if full_report else None
     REPORT_FILE.write_text(
         generate_unified_report_text_cn(
@@ -756,6 +1125,12 @@ def parse_args(argv=None):
         help="Only run cases whose file name contains this text.",
     )
     parser.add_argument(
+        "--verification-backend",
+        choices=("both", "tinyfive", "interpreter"),
+        default="both",
+        help="Select result verification backend(s); both keeps verdicts independent.",
+    )
+    parser.add_argument(
         "--fail-on-test-failure",
         action="store_true",
         help="Return exit code 1 when one or more selected cases fail.",
@@ -765,6 +1140,9 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.update_baseline and args.verification_backend == "interpreter":
+        print("Cannot update a TinyFive cost-model baseline in interpreter-only mode.")
+        return 2
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     baseline = load_baseline() if args.benchmark else {}
 
@@ -795,6 +1173,22 @@ def main(argv=None):
 
         case_start = time.perf_counter()
         meta = load_metadata(dsl_file)
+        interpreter_start = time.perf_counter()
+        if args.verification_backend in {"both", "interpreter"} and not meta.get("_metadata_error"):
+            interpreter_result = run_interpreter(dsl_file, meta.get("inputs", {}))
+        else:
+            interpreter_result = {
+                "success": False,
+                "return_value": None,
+                "backend": "interpreter",
+                "status": "SKIPPED",
+                "error": (
+                    "interpreter backend not selected"
+                    if not meta.get("_metadata_error")
+                    else "invalid metadata"
+                ),
+            }
+        interpreter_time_sec = time.perf_counter() - interpreter_start
         compile_start = time.perf_counter()
         metadata_error = meta.get("_metadata_error")
         if metadata_error:
@@ -821,6 +1215,9 @@ def main(argv=None):
             compile_error = _last_nonempty_line(result.stderr or result.stdout)
         register_map_error = None
         initial_registers = {}
+        input_abi_supported, input_abi_reason = tinyfive_input_abi_supported(
+            meta.get("inputs", {}),
+        )
         if result.returncode == 0:
             try:
                 initial_registers = load_initial_registers(
@@ -846,13 +1243,48 @@ def main(argv=None):
                 "backend": "none",
                 "error": register_map_error,
             }
+        elif args.verification_backend == "interpreter":
+            sim_result = {
+                "success": False,
+                "instr_count": 0,
+                "return_value": None,
+                "backend": "skipped",
+                "error": "TinyFive backend not selected",
+            }
         else:
             sim_result = run_simulation(output_file, initial_registers)
         simulation_time_sec = time.perf_counter() - simulation_start
         expected_value = meta.get("expected_return")
         actual_value = sim_result.get("return_value")
         matched = bool(sim_result.get("success")) and values_equal(actual_value, expected_value)
+        interpreter_actual = interpreter_result.get("return_value")
+        interpreter_matched = bool(interpreter_result.get("success")) and values_equal(
+            interpreter_actual,
+            expected_value,
+        )
+        if interpreter_result.get("status") == "EXECUTED":
+            interpreter_result["status"] = "PASS" if interpreter_matched else "MISMATCH"
+        interpreter_failure_kind = None
+        if interpreter_result.get("status") == "UNSUPPORTED":
+            interpreter_failure_kind = "interpreter_control_flow_unsupported"
+        elif interpreter_result.get("status") == "TIMEOUT":
+            interpreter_failure_kind = "interpreter_timeout"
+        elif interpreter_result.get("status") == "ERROR":
+            interpreter_failure_kind = "interpreter_error"
+        elif interpreter_result.get("status") == "MISMATCH":
+            interpreter_failure_kind = "interpreter_result_mismatch"
+        backend_outputs_match = (
+            values_equal(interpreter_actual, actual_value)
+            if (
+                interpreter_result.get("success")
+                and sim_result.get("success")
+                and input_abi_supported
+            )
+            else None
+        )
+        static_asm_instruction_count = count_assembly_instructions(output_file)
         benchmark_counts = []
+        benchmark_perf_samples = []
         benchmark_summary = {
             "runs": None,
             "avg_instr_count": None,
@@ -869,9 +1301,24 @@ def main(argv=None):
         }
         benchmark_stopped_reason = None
 
+        tinyfive_status, tinyfive_failure_kind = classify_tinyfive_result(
+            result,
+            sim_result,
+            matched,
+            input_abi_supported,
+            metadata_error=metadata_error,
+            register_map_error=register_map_error,
+        )
+
         if args.benchmark > 0:
             regression["threshold_pct"] = args.regression_threshold
-            if result.returncode != 0 or not output_file.exists():
+            if args.verification_backend == "interpreter":
+                benchmark_stopped_reason = "benchmark skipped: TinyFive backend not selected"
+                benchmark_summary = summarize_benchmark_runs([])
+            elif not input_abi_supported:
+                benchmark_stopped_reason = "benchmark skipped: TinyFive input ABI unsupported"
+                benchmark_summary = summarize_benchmark_runs([])
+            elif result.returncode != 0 or not output_file.exists():
                 benchmark_stopped_reason = "benchmark skipped: compile failed"
                 benchmark_summary = summarize_benchmark_runs([])
             elif sim_result.get("backend") == "timeout":
@@ -894,6 +1341,9 @@ def main(argv=None):
                         )
                         break
                     benchmark_counts.append(benchmark_result.get("instr_count", 0))
+                    benchmark_perf_samples.append(
+                        benchmark_result.get("perf_counters") or {},
+                    )
                 benchmark_summary = summarize_benchmark_runs(benchmark_counts)
 
             if benchmark_summary["avg_instr_count"] is not None and benchmark_stopped_reason is None:
@@ -910,16 +1360,56 @@ def main(argv=None):
                     baseline_instr_count=baseline_entry.get("avg_instr_count", 0.0),
                     threshold_pct=args.regression_threshold,
                 )
+
+        average_perf_counters = summarize_perf_counters(benchmark_perf_samples)
+        cost_model = build_cost_model_metrics(
+            static_asm_instruction_count,
+            sim_result,
+            avg_instr_count=benchmark_summary["avg_instr_count"],
+            avg_perf_counters=average_perf_counters,
+        )
+        cost_model_comparison = {}
+        cost_model_regressed = None
+        baseline_entry = baseline.get(dsl_file.stem)
+        if (
+            args.benchmark > 0
+            and baseline_entry
+            and benchmark_summary["avg_instr_count"] is not None
+            and benchmark_stopped_reason is None
+        ):
+            baseline_cost_model = baseline_entry.get("cost_model") or {
+                "dynamic_instructions": baseline_entry.get("avg_instr_count"),
+            }
+            cost_model_comparison = detect_cost_model_regressions(
+                cost_model,
+                baseline_cost_model,
+                args.regression_threshold,
+            )
+            comparable_regressions = [
+                item["regressed"]
+                for item in cost_model_comparison.values()
+                if item["regressed"] is not None
+            ]
+            cost_model_regressed = any(comparable_regressions)
+            regression["regressed"] = bool(regression["regressed"] or cost_model_regressed)
         total_time_sec = time.perf_counter() - case_start
 
-        ok = (
-            result.returncode == 0
-            and output_file.exists()
-            and sim_result["success"]
-            and matched
+        tinyfive_ok = (
+            tinyfive_status == "PASS"
             and regression["regressed"] is not True
             and benchmark_stopped_reason is None
         )
+        interpreter_ok = (
+            result.returncode == 0
+            and interpreter_result.get("status") == "PASS"
+        )
+        if args.verification_backend == "interpreter":
+            ok = interpreter_ok
+        elif args.verification_backend == "tinyfive":
+            ok = tinyfive_ok
+        else:
+            interpreter_required = interpreter_result.get("status") != "UNSUPPORTED"
+            ok = tinyfive_ok and (interpreter_ok or not interpreter_required)
 
         if ok:
             print("PASS")
@@ -929,7 +1419,9 @@ def main(argv=None):
             print("FAIL")
             failed += 1
             status = "FAIL"
-            if sim_result.get("error"):
+            if tinyfive_failure_kind == "input_abi_unsupported":
+                print(input_abi_reason)
+            elif sim_result.get("error"):
                 print(sim_result["error"])
             else:
                 print(
@@ -951,13 +1443,38 @@ def main(argv=None):
             "expected": expected_value,
             "actual": actual_value,
             "matched": matched,
+            "verification_backend": args.verification_backend,
+            "interpreter_status": interpreter_result.get("status"),
+            "interpreter_actual": interpreter_actual,
+            "interpreter_matched": interpreter_matched,
+            "interpreter_error": interpreter_result.get("error"),
+            "interpreter_failure_kind": interpreter_failure_kind,
+            "interpreter_time_sec": interpreter_time_sec,
+            "backend_outputs_match": backend_outputs_match,
+            "tinyfive_status": tinyfive_status,
+            "tinyfive_failure_kind": tinyfive_failure_kind,
+            "tinyfive_input_abi_supported": input_abi_supported,
+            "tinyfive_input_abi_reason": input_abi_reason,
+            "simulation_error": sim_result.get("error"),
             "initial_registers": initial_registers,
             "register_map": _report_path(register_map_file),
             "backend": sim_result.get("backend", "none"),
             "instr_count": sim_result.get("instr_count", 0),
+            "static_asm_instruction_count": static_asm_instruction_count,
+            "machine_code_instruction_count": sim_result.get("machine_code_instructions"),
+            "code_size_bytes": sim_result.get("code_size_bytes"),
+            "perf_counters": sim_result.get("perf_counters") or {},
+            "cost_model": cost_model,
+            "cost_model_comparison": cost_model_comparison,
+            "cost_model_regressed": cost_model_regressed,
             "compile_returncode": result.returncode,
             "compile_timed_out": result.returncode == 124,
             "compile_error": compile_error,
+            "compile_command": (
+                shlex.join(str(arg) for arg in result.args)
+                if isinstance(result.args, (list, tuple)) and result.args
+                else "(compiler was not started)"
+            ),
             "compile_log": _report_path(compile_log) if compile_log else None,
             "compile_time_sec": compile_time_sec,
             "simulation_time_sec": simulation_time_sec,

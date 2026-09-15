@@ -81,3 +81,116 @@ def test_runner_uses_project_layout():
     assert runner.BUILD_DIR == ROOT / "build" / "topic06"
     assert runner.REPORT_DIR == ROOT / "benchmark_reports" / "topic06"
     assert runner.BASELINE_FILE == ROOT / "benchmarks" / "topic06" / "baseline.json"
+
+
+def test_interpreter_verifies_scalar_and_tensor_cases():
+    runner = _load_runner()
+
+    for relative_path in (
+        Path("activation/relu_add.dsl"),
+        Path("tensor/matmul_2x2.dsl"),
+    ):
+        dsl_file = CASE_DIR / relative_path
+        metadata = runner.load_metadata(dsl_file)
+        result = runner.run_interpreter(dsl_file, metadata["inputs"])
+
+        assert result["success"]
+        assert runner.values_equal(
+            result["return_value"],
+            metadata["expected_return"],
+        )
+
+
+def test_interpreter_marks_control_flow_as_unsupported():
+    runner = _load_runner()
+
+    for relative_path in (
+        Path("loop/loop_add_4.dsl"),
+        Path("branch/if_else.dsl"),
+    ):
+        dsl_file = CASE_DIR / relative_path
+        metadata = runner.load_metadata(dsl_file)
+        result = runner.run_interpreter(dsl_file, metadata["inputs"])
+
+        assert result["status"] == "UNSUPPORTED"
+        assert not result["success"]
+
+
+def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
+    runner = _load_runner()
+    report_dir = tmp_path / "reports"
+    monkeypatch.setattr(runner, "BUILD_DIR", tmp_path / "build")
+    monkeypatch.setattr(runner, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(runner, "REPORT_FILE", report_dir / "report.md")
+    monkeypatch.setattr(runner, "JSON_REPORT_FILE", report_dir / "report.json")
+    monkeypatch.setattr(runner, "HTML_REPORT_FILE", report_dir / "report.html")
+    monkeypatch.setattr(runner, "CHART_FILE", report_dir / "chart.png")
+    monkeypatch.setattr(runner, "FAILURE_DIR", report_dir / "failures")
+    monkeypatch.setattr(runner, "CASE_REPORT_DIR", report_dir / "cases")
+
+    exit_code = runner.main([
+        "--filter", "relu_only",
+        "--verification-backend", "both",
+        "--fail-on-test-failure",
+    ])
+
+    assert exit_code == 0
+    payload = json.loads((report_dir / "report.json").read_text(encoding="utf-8"))
+    result = payload["results"][0]
+    assert payload["schema_version"] == 2
+    assert result["interpreter_status"] == "PASS"
+    assert result["tinyfive_status"] == "PASS"
+    assert result["backend_outputs_match"] is True
+    assert result["static_asm_instruction_count"] > 0
+    assert (report_dir / "cases/activation-relu_only.md").exists()
+    assert (report_dir / "cases/activation-relu_only.json").exists()
+
+
+def test_tinyfive_input_abi_marks_tensor_inputs_unsupported():
+    runner = _load_runner()
+
+    supported, reason = runner.tinyfive_input_abi_supported({"A": [[1, 2], [3, 4]]})
+
+    assert not supported
+    assert "A" in reason
+
+
+def test_cost_model_baseline_uses_versioned_schema(tmp_path, monkeypatch):
+    runner = _load_runner()
+    baseline_file = tmp_path / "baseline.json"
+    monkeypatch.setattr(runner, "BASELINE_FILE", baseline_file)
+
+    runner.save_baseline([{
+        "name": "relu_only",
+        "category": "activation",
+        "avg_instr_count": 5.0,
+        "benchmark_runs": 3,
+        "tinyfive_status": "PASS",
+        "cost_model": {
+            "static_asm_instructions": 3,
+            "machine_instructions": 6,
+            "code_size_bytes": 24,
+            "dynamic_instructions": 5.0,
+        },
+    }])
+
+    payload = json.loads(baseline_file.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == 2
+    assert payload["primary_metric"] == "dynamic_instructions"
+    assert payload["cases"]["relu_only"]["cost_model"]["code_size_bytes"] == 24
+    assert runner.load_baseline() == payload["cases"]
+
+
+def test_interpreter_only_mode_cannot_replace_cost_model_baseline(tmp_path, monkeypatch):
+    runner = _load_runner()
+    baseline_file = tmp_path / "baseline.json"
+    monkeypatch.setattr(runner, "BASELINE_FILE", baseline_file)
+
+    exit_code = runner.main([
+        "--benchmark", "1",
+        "--update-baseline",
+        "--verification-backend", "interpreter",
+    ])
+
+    assert exit_code == 2
+    assert not baseline_file.exists()

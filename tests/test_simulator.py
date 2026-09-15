@@ -155,6 +155,9 @@ class TestRealProfiledMachine:
         assert result["backend"] == "tinyfive"
         assert result["return_value"] == 5
         assert result["instr_count"] == 2
+        assert result["machine_code_instructions"] == 2
+        assert result["code_size_bytes"] == 8
+        assert result["perf_counters"]["total"] == 2
 
     @pytest.mark.parametrize("value", [
         -(1 << 31), -4097, -2049, -2048, -1,

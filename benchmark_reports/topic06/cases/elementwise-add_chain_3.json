@@ -1,0 +1,155 @@
+{
+  "mode": "benchmark",
+  "name": "add_chain_3",
+  "category": "elementwise",
+  "path": "tests/topic06/cases/elementwise/add_chain_3.dsl",
+  "status": "PASS",
+  "description": "Chain three add operations across four symbolic inputs.",
+  "expected_type": "scalar",
+  "output_dtype": null,
+  "output_shape": null,
+  "expected": 14,
+  "actual": 14,
+  "matched": true,
+  "verification_backend": "both",
+  "interpreter_status": "PASS",
+  "interpreter_actual": 14,
+  "interpreter_matched": true,
+  "interpreter_error": null,
+  "interpreter_failure_kind": null,
+  "interpreter_time_sec": 0.121873400057666,
+  "backend_outputs_match": true,
+  "tinyfive_status": "PASS",
+  "tinyfive_failure_kind": null,
+  "tinyfive_input_abi_supported": true,
+  "tinyfive_input_abi_reason": null,
+  "simulation_error": null,
+  "initial_registers": {
+    "t0": 2,
+    "t1": 3,
+    "t3": 4,
+    "t5": 5
+  },
+  "register_map": "build/topic06/add_chain_3.registers.json",
+  "backend": "tinyfive",
+  "instr_count": 5,
+  "static_asm_instruction_count": 5,
+  "machine_code_instruction_count": 5,
+  "code_size_bytes": 20,
+  "perf_counters": {
+    "total": 5,
+    "load": 0,
+    "store": 0,
+    "mul": 0,
+    "add": 4,
+    "madd": 0,
+    "branch": 0
+  },
+  "cost_model": {
+    "static_asm_instructions": 5,
+    "machine_instructions": 5,
+    "code_size_bytes": 20,
+    "dynamic_instructions": 5.0,
+    "dynamic_load": 0.0,
+    "dynamic_store": 0.0,
+    "dynamic_mul": 0.0,
+    "dynamic_add": 4.0,
+    "dynamic_madd": 0.0,
+    "dynamic_branch": 0.0
+  },
+  "cost_model_comparison": {
+    "static_asm_instructions": {
+      "current": 5,
+      "baseline": 5,
+      "delta": 0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "machine_instructions": {
+      "current": 5,
+      "baseline": 5,
+      "delta": 0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "code_size_bytes": {
+      "current": 20,
+      "baseline": 20,
+      "delta": 0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_instructions": {
+      "current": 5.0,
+      "baseline": 5.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_load": {
+      "current": 0.0,
+      "baseline": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_store": {
+      "current": 0.0,
+      "baseline": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_mul": {
+      "current": 0.0,
+      "baseline": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_add": {
+      "current": 4.0,
+      "baseline": 4.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_madd": {
+      "current": 0.0,
+      "baseline": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    },
+    "dynamic_branch": {
+      "current": 0.0,
+      "baseline": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "regressed": false
+    }
+  },
+  "cost_model_regressed": false,
+  "compile_returncode": 0,
+  "compile_timed_out": false,
+  "compile_error": null,
+  "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\elementwise\\add_chain_3.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain_3.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain_3.registers.json'",
+  "compile_log": null,
+  "compile_time_sec": 0.0855520999757573,
+  "simulation_time_sec": 0.1468493000138551,
+  "total_time_sec": 0.8014750999864191,
+  "benchmark_runs": 3,
+  "benchmark_stopped_reason": null,
+  "avg_instr_count": 5.0,
+  "min_instr_count": 5,
+  "max_instr_count": 5,
+  "ci95_instr_count": 0.0,
+  "baseline_instr_count": 5.0,
+  "delta": 0.0,
+  "delta_pct": 0.0,
+  "threshold_pct": 5.0,
+  "regressed": false,
+  "asm": "build/topic06/add_chain_3.s",
+  "case_report_md": "benchmark_reports/topic06/cases/elementwise-add_chain_3.md",
+  "case_report_json": "benchmark_reports/topic06/cases/elementwise-add_chain_3.json"
+}

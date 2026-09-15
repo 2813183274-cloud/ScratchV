@@ -436,6 +436,8 @@ def verify_assembly(
         dict with keys: success, instr_count, return_value, error
     """
     m = ProfiledMachine(mem_size=128 * 1024 * 1024)
+    machine_code_instructions = None
+    code_size_bytes = None
     if not m.available:
         return {
             "success": False,
@@ -443,6 +445,9 @@ def verify_assembly(
             "return_value": None,
             "backend": "tinyfive",
             "error": "tinyfive not installed",
+            "machine_code_instructions": None,
+            "code_size_bytes": None,
+            "perf_counters": {},
         }
 
     try:
@@ -451,10 +456,12 @@ def verify_assembly(
         binary = assemble_to_binary(asm_code)
         if not binary:
             raise ValueError("assembler produced empty binary")
+        code_size_bytes = len(binary)
         words = [
             int.from_bytes(binary[i:i + 4], "little")
             for i in range(0, len(binary), 4)
         ]
+        machine_code_instructions = len(words)
         m.load_binary(words, origin=0)
 
         for reg_name, value in (initial_registers or {}).items():
@@ -477,6 +484,9 @@ def verify_assembly(
             "return_value": None,
             "backend": "tinyfive",
             "error": str(e),
+            "machine_code_instructions": machine_code_instructions,
+            "code_size_bytes": code_size_bytes,
+            "perf_counters": m.get_perf(),
         }
 
     if verbose:
@@ -487,4 +497,7 @@ def verify_assembly(
         "return_value": m.get_reg(10),
         "backend": "tinyfive",
         "error": None,
+        "machine_code_instructions": machine_code_instructions,
+        "code_size_bytes": code_size_bytes,
+        "perf_counters": m.get_perf(),
     }
