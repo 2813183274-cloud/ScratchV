@@ -47,6 +47,22 @@ def test_compiler_emits_register_map_for_topic06_case(tmp_path):
     assert result.stats["register_map"]["bias"] == "t1"
 
 
+def test_compiler_reserves_distinct_registers_for_live_in_inputs(tmp_path):
+    from scratchv.compiler import CompilerConfig, CompilerDriver
+
+    driver = CompilerDriver(CompilerConfig(
+        backend="riscv",
+        optimize_level="all",
+        reg_alloc="greedy",
+    ))
+    source = CASE_DIR / "elementwise" / "add_chain.dsl"
+    result = driver.compile(str(source), str(tmp_path / "add_chain.s"))
+
+    register_map = result.stats["register_map"]
+    input_registers = {register_map[name] for name in ("a", "b", "c")}
+    assert len(input_registers) == 3
+
+
 def test_runner_loads_compiler_register_map(tmp_path):
     runner = _load_runner()
     register_map_file = tmp_path / "registers.json"

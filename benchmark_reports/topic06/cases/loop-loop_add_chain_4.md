@@ -5,7 +5,7 @@
 - 类别: loop
 - DSL: `tests/topic06/cases/loop/loop_add_chain_4.dsl`
 - 描述: Run a four-iteration loop whose body computes two chained adds; final returned value is the last loop-body result.
-- 总体状态: PASS
+- 总体状态: FAIL
 - 验证模式: both
 
 ## 后端能力矩阵
@@ -22,22 +22,22 @@
 
 ## 性能指标
 
-- 静态汇编指令数: 8
-- 编码后机器指令数: 9
-- 代码大小(bytes): 36
-- TinyFive 动态执行指令数: 26
-- TinyFive 分类计数: {'total': 26, 'load': 0, 'store': 0, 'mul': 0, 'add': 16, 'madd': 0, 'branch': 5}
-- 编译耗时(s): 0.086606
-- 解释器耗时(s): 0.000088
-- TinyFive 模拟耗时(s): 0.157277
-- 总耗时(s): 0.703120
+- 静态汇编指令数: 20
+- 编码后机器指令数: 21
+- 代码大小(bytes): 84
+- TinyFive 动态执行指令数: 61
+- TinyFive 分类计数: {'total': 61, 'load': 18, 'store': 16, 'mul': 0, 'add': 17, 'madd': 0, 'branch': 5}
+- 编译耗时(s): 0.095539
+- 解释器耗时(s): 0.000102
+- TinyFive 模拟耗时(s): 0.165189
+- 总耗时(s): 0.736818
 - 基线动态指令数: 26.0
-- 动态指令变化率(%): 0.0
-- 是否退化: False
+- 动态指令变化率(%): 134.6154
+- 是否退化: True
 
-- Cost model 指标: {'static_asm_instructions': 8, 'machine_instructions': 9, 'code_size_bytes': 36, 'dynamic_instructions': 26.0, 'dynamic_load': 0.0, 'dynamic_store': 0.0, 'dynamic_mul': 0.0, 'dynamic_add': 16.0, 'dynamic_madd': 0.0, 'dynamic_branch': 5.0}
-- Cost model 对比: {'static_asm_instructions': {'current': 8, 'baseline': 8, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'machine_instructions': {'current': 9, 'baseline': 9, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'code_size_bytes': {'current': 36, 'baseline': 36, 'delta': 0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_instructions': {'current': 26.0, 'baseline': 26.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_load': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_store': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_mul': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_add': {'current': 16.0, 'baseline': 16.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_madd': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_branch': {'current': 5.0, 'baseline': 5.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}}
-- Cost model 是否退化: False
+- Cost model 指标: {'static_asm_instructions': 20, 'machine_instructions': 21, 'code_size_bytes': 84, 'dynamic_instructions': 61.0, 'dynamic_load': 18.0, 'dynamic_store': 16.0, 'dynamic_mul': 0.0, 'dynamic_add': 17.0, 'dynamic_madd': 0.0, 'dynamic_branch': 5.0}
+- Cost model 对比: {'static_asm_instructions': {'current': 20, 'baseline': 8, 'delta': 12, 'delta_pct': 150.0, 'regressed': True}, 'machine_instructions': {'current': 21, 'baseline': 9, 'delta': 12, 'delta_pct': 133.3333, 'regressed': True}, 'code_size_bytes': {'current': 84, 'baseline': 36, 'delta': 48, 'delta_pct': 133.3333, 'regressed': True}, 'dynamic_instructions': {'current': 61.0, 'baseline': 26.0, 'delta': 35.0, 'delta_pct': 134.6154, 'regressed': True}, 'dynamic_load': {'current': 18.0, 'baseline': 0.0, 'delta': 18.0, 'delta_pct': None, 'regressed': True}, 'dynamic_store': {'current': 16.0, 'baseline': 0.0, 'delta': 16.0, 'delta_pct': None, 'regressed': True}, 'dynamic_mul': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_add': {'current': 17.0, 'baseline': 16.0, 'delta': 1.0, 'delta_pct': 6.25, 'regressed': True}, 'dynamic_madd': {'current': 0.0, 'baseline': 0.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}, 'dynamic_branch': {'current': 5.0, 'baseline': 5.0, 'delta': 0.0, 'delta_pct': 0.0, 'regressed': False}}
+- Cost model 是否退化: True
 
 ## 编译信息
 
@@ -56,16 +56,28 @@
   .globl main
   .type main, @function
 main:
+  addi sp, sp, -16  # create stack frame
 .entry:
-    add t2, t0, t1
-    li t3, 0  # loop init
+    add t3, t0, t1
+    li t0, 0  # loop init
+    sw t0, 12(sp)  # spill v_1 [regalloc:spill]
+    sw t2, 8(sp)  # spill c [regalloc:spill]
+    sw t3, 4(sp)  # spill v_2 [regalloc:spill]
 .Lloop_header_1:
-    bge t3, 4, .Lloop_exit_3
+    lw t0, 12(sp)  # reload v_1 [regalloc:reload]
+    sw t0, 12(sp)  # spill v_1 [regalloc:spill]
+    bge t0, 4, .Lloop_exit_3
 .Lloop_body_2:
-    add t5, t2, t4
-    addi t3, t3, 1  # loop inc
+    lw t0, 4(sp)  # reload v_2 [regalloc:reload]
+    lw t1, 8(sp)  # reload c [regalloc:reload]
+    add t2, t0, t1
+    lw t0, 12(sp)  # reload v_1 [regalloc:reload]
+    addi t0, t0, 1  # loop inc
+    sw t0, 12(sp)  # spill v_1 [regalloc:spill]
+    sw t2, 0(sp)  # spill v_3 [regalloc:spill]
     j .Lloop_header_1
 .Lloop_exit_3:
-    mv a0, t5  # return value
+    lw t0, 0(sp)  # reload v_3 [regalloc:reload]
+    mv a0, t0  # return value
     jalr zero, ra  # ret
 ```

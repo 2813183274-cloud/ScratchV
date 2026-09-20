@@ -57,7 +57,7 @@ class CompilerConfig:
 
     backend: str = "riscv"
     optimize_level: str = "none"
-    reg_alloc: str = "linear"
+    reg_alloc: str = "greedy"
     dump_ir: bool = False
     verify: bool = False
     rtol: float = 1e-5
@@ -443,22 +443,30 @@ class CompilerDriver:
         selector = InstructionSelector(program)
         machine_instrs = selector.run()
 
-        # Linear-scan: skip greedy allocator, use liveness-driven allocator
+        # Linear-scan path: allocate on *unallocated* MachineInstrs.
+        # (Previously RegisterAllocator ran first with mode="linear", which
+        # fell through to greedy — so LinearScan never saw virtual regs.)
         if self.config.reg_alloc == "linear":
             from scratchv.backend.regalloc_linear import (
                 LinearScanAllocator, block_from_machine_instrs,
             )
             ls_insts = block_from_machine_instrs(machine_instrs)
             lsa = LinearScanAllocator()
-            asm_text = lsa.emit(ls_insts)
+            assembly = lsa.emit(ls_insts)
             self._last_register_map = dict(lsa.alloc_map)
-            return asm_text
+            from scratchv.backend.abi_frame import apply_abi_frames
+            return apply_abi_frames(assembly, lsa.spill_slot_count)
 
-        alloc = RegisterAllocator(machine_instrs, mode=self.config.reg_alloc)
+        mode = self.config.reg_alloc if self.config.reg_alloc in (
+            "naive", "greedy",
+        ) else "greedy"
+        alloc = RegisterAllocator(machine_instrs, mode=mode)
         allocated = alloc.run()
         self._last_register_map = alloc.register_map
         emitter = AsmEmitter(allocated)
-        return emitter.emit()
+        assembly = emitter.emit()
+        from scratchv.backend.abi_frame import apply_abi_frames
+        return apply_abi_frames(assembly, alloc.spill_slot_count)
 
     def _generate_riscv_dag(self, program) -> str:
         """DAG-based instruction selection pipeline."""
@@ -475,12 +483,28 @@ class CompilerDriver:
         scheduler = DAGScheduler(dag)
         machine_instrs = scheduler.run()
 
-        alloc = RegisterAllocator(machine_instrs, mode=self.config.reg_alloc)
+        if self.config.reg_alloc == "linear":
+            from scratchv.backend.regalloc_linear import (
+                LinearScanAllocator, block_from_machine_instrs,
+            )
+            ls_insts = block_from_machine_instrs(machine_instrs)
+            lsa = LinearScanAllocator()
+            assembly = lsa.emit(ls_insts)
+            self._last_register_map = dict(lsa.alloc_map)
+            from scratchv.backend.abi_frame import apply_abi_frames
+            return apply_abi_frames(assembly, lsa.spill_slot_count)
+
+        mode = self.config.reg_alloc if self.config.reg_alloc in (
+            "naive", "greedy",
+        ) else "greedy"
+        alloc = RegisterAllocator(machine_instrs, mode=mode)
         allocated = alloc.run()
         self._last_register_map = alloc.register_map
 
         emitter = AsmEmitter(allocated)
-        return emitter.emit()
+        assembly = emitter.emit()
+        from scratchv.backend.abi_frame import apply_abi_frames
+        return apply_abi_frames(assembly, alloc.spill_slot_count)
 
     # ── Internal: post-codegen passes ───────────────────────────────────────
 
@@ -491,7 +515,11 @@ class CompilerDriver:
             opt = AsmPeepholeOptimizer()
             asm_text, changes = opt.optimize(asm_text)
             if changes:
-                warnings.append(f"Asm peephole: {changes} changes")
+                warnings.append(
+                    f"Asm peephole: {changes} changes, "
+                    f"{opt.instructions_saved} instr saved "
+                    f"({opt.instructions_before}->{opt.instructions_after})"
+                )
 
         if self.config.const_merge:
             from scratchv.backend.const_merge import merge_constants_detailed

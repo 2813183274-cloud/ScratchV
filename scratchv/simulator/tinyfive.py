@@ -32,6 +32,20 @@ def _tinyfive_read_i32_compat(machine_obj, addr: int) -> np.int32:
     return np.int32(int.from_bytes(raw, "little", signed=True))
 
 
+def _tinyfive_lw_compat(machine_obj, rd: int, imm: int, rs1: int) -> None:
+    """Execute LW without NumPy uint8 intermediate-overflow.
+
+    TinyFive 1.0.0 implements ``LW`` separately from ``read_i32`` and shifts
+    ``numpy.uint8`` values in place.  On current NumPy versions that truncates
+    every shifted byte, effectively loading only the least-significant byte.
+    Keep the workaround inside this adapter so verification observes RV32I
+    word-load semantics without modifying the installed dependency.
+    """
+    address = int(machine_obj.x[rs1]) + int(imm)
+    machine_obj.x[rd] = _tinyfive_read_i32_compat(machine_obj, address)
+    machine_obj.ipc()
+
+
 class ProfiledMachine:
     """TinyFive machine wrapper for benchmark-quality RISC-V simulation.
 
@@ -66,6 +80,7 @@ class ProfiledMachine:
                 _tinyfive_read_i32_compat,
                 self._m,
             )
+            self._m.LW = MethodType(_tinyfive_lw_compat, self._m)
             self._available = True
         except ImportError:
             self._available = False
@@ -464,7 +479,11 @@ def verify_assembly(
         machine_code_instructions = len(words)
         m.load_binary(words, origin=0)
 
-        for reg_name, value in (initial_registers or {}).items():
+        initial_registers = initial_registers or {}
+        if "sp" not in initial_registers and "x2" not in initial_registers:
+            m.set_reg(2, m.mem_size)
+
+        for reg_name, value in initial_registers.items():
             reg_num = _REG_NUMS.get(reg_name)
             if reg_num is not None:
                 m.set_reg(reg_num, int(value))

@@ -3,7 +3,7 @@
   "name": "loop_relu_add_4",
   "category": "loop",
   "path": "tests/topic06/cases/loop/loop_relu_add_4.dsl",
-  "status": "PASS",
+  "status": "FAIL",
   "description": "Run a four-iteration loop whose body computes add followed by ReLU; final returned value is the last loop-body result.",
   "expected_type": "scalar",
   "output_dtype": null,
@@ -17,7 +17,7 @@
   "interpreter_matched": false,
   "interpreter_error": "unsupported control flow: for",
   "interpreter_failure_kind": "interpreter_control_flow_unsupported",
-  "interpreter_time_sec": 7.280008867383003e-05,
+  "interpreter_time_sec": 7.050018757581711e-05,
   "backend_outputs_match": null,
   "tinyfive_status": "PASS",
   "tinyfive_failure_kind": null,
@@ -30,73 +30,73 @@
   },
   "register_map": "build/topic06/loop_relu_add_4.registers.json",
   "backend": "tinyfive",
-  "instr_count": 30,
-  "static_asm_instruction_count": 8,
-  "machine_code_instruction_count": 12,
-  "code_size_bytes": 48,
+  "instr_count": 60,
+  "static_asm_instruction_count": 18,
+  "machine_code_instruction_count": 22,
+  "code_size_bytes": 88,
   "perf_counters": {
-    "total": 30,
-    "load": 0,
-    "store": 0,
+    "total": 60,
+    "load": 14,
+    "store": 15,
     "mul": 0,
-    "add": 16,
+    "add": 17,
     "madd": 0,
     "branch": 9
   },
   "cost_model": {
-    "static_asm_instructions": 8,
-    "machine_instructions": 12,
-    "code_size_bytes": 48,
-    "dynamic_instructions": 30.0,
-    "dynamic_load": 0.0,
-    "dynamic_store": 0.0,
+    "static_asm_instructions": 18,
+    "machine_instructions": 22,
+    "code_size_bytes": 88,
+    "dynamic_instructions": 60.0,
+    "dynamic_load": 14.0,
+    "dynamic_store": 15.0,
     "dynamic_mul": 0.0,
-    "dynamic_add": 16.0,
+    "dynamic_add": 17.0,
     "dynamic_madd": 0.0,
     "dynamic_branch": 9.0
   },
   "cost_model_comparison": {
     "static_asm_instructions": {
-      "current": 8,
+      "current": 18,
       "baseline": 8,
-      "delta": 0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 10,
+      "delta_pct": 125.0,
+      "regressed": true
     },
     "machine_instructions": {
-      "current": 12,
+      "current": 22,
       "baseline": 12,
-      "delta": 0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 10,
+      "delta_pct": 83.3333,
+      "regressed": true
     },
     "code_size_bytes": {
-      "current": 48,
+      "current": 88,
       "baseline": 48,
-      "delta": 0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 40,
+      "delta_pct": 83.3333,
+      "regressed": true
     },
     "dynamic_instructions": {
-      "current": 30.0,
+      "current": 60.0,
       "baseline": 30.0,
-      "delta": 0.0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 30.0,
+      "delta_pct": 100.0,
+      "regressed": true
     },
     "dynamic_load": {
-      "current": 0.0,
+      "current": 14.0,
       "baseline": 0.0,
-      "delta": 0.0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 14.0,
+      "delta_pct": null,
+      "regressed": true
     },
     "dynamic_store": {
-      "current": 0.0,
+      "current": 15.0,
       "baseline": 0.0,
-      "delta": 0.0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 15.0,
+      "delta_pct": null,
+      "regressed": true
     },
     "dynamic_mul": {
       "current": 0.0,
@@ -106,11 +106,11 @@
       "regressed": false
     },
     "dynamic_add": {
-      "current": 16.0,
+      "current": 17.0,
       "baseline": 16.0,
-      "delta": 0.0,
-      "delta_pct": 0.0,
-      "regressed": false
+      "delta": 1.0,
+      "delta_pct": 6.25,
+      "regressed": true
     },
     "dynamic_madd": {
       "current": 0.0,
@@ -127,26 +127,26 @@
       "regressed": false
     }
   },
-  "cost_model_regressed": false,
+  "cost_model_regressed": true,
   "compile_returncode": 0,
   "compile_timed_out": false,
   "compile_error": null,
   "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\loop\\loop_relu_add_4.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\loop_relu_add_4.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\loop_relu_add_4.registers.json'",
   "compile_log": null,
-  "compile_time_sec": 0.08553029992617667,
-  "simulation_time_sec": 0.15667920000851154,
-  "total_time_sec": 0.7070331000722945,
+  "compile_time_sec": 0.10415960010141134,
+  "simulation_time_sec": 0.16599450004287064,
+  "total_time_sec": 0.7553799001034349,
   "benchmark_runs": 3,
   "benchmark_stopped_reason": null,
-  "avg_instr_count": 30.0,
-  "min_instr_count": 30,
-  "max_instr_count": 30,
+  "avg_instr_count": 60.0,
+  "min_instr_count": 60,
+  "max_instr_count": 60,
   "ci95_instr_count": 0.0,
   "baseline_instr_count": 30.0,
-  "delta": 0.0,
-  "delta_pct": 0.0,
+  "delta": 30.0,
+  "delta_pct": 100.0,
   "threshold_pct": 5.0,
-  "regressed": false,
+  "regressed": true,
   "asm": "build/topic06/loop_relu_add_4.s",
   "case_report_md": "benchmark_reports/topic06/cases/loop-loop_relu_add_4.md",
   "case_report_json": "benchmark_reports/topic06/cases/loop-loop_relu_add_4.json"

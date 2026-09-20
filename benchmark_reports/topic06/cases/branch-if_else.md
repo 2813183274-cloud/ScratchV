@@ -13,7 +13,7 @@
 | 后端 | 状态 | 实际输出 | 与期望匹配 | 失败类型 | 错误 |
 |---|---|---|---|---|---|
 | DSLInterpreter | UNSUPPORTED | None | False | interpreter_control_flow_unsupported | unsupported control flow: if |
-| TinyFive | TIMEOUT | None | False | simulation_timeout | simulation timeout after 5s |
+| TinyFive | ERROR | None | False | simulation_error | undefined branch target: if_then1 |
 
 - 期望输出: 5
 - 两后端输出一致: null
@@ -22,20 +22,20 @@
 
 ## 性能指标
 
-- 静态汇编指令数: 12
+- 静态汇编指令数: 22
 - 编码后机器指令数: null
 - 代码大小(bytes): null
 - TinyFive 动态执行指令数: 0
-- TinyFive 分类计数: {}
-- 编译耗时(s): 0.087683
-- 解释器耗时(s): 0.000071
-- TinyFive 模拟耗时(s): 5.024043
-- 总耗时(s): 5.117447
+- TinyFive 分类计数: {'total': 0, 'load': 0, 'store': 0, 'mul': 0, 'add': 0, 'madd': 0, 'branch': 0}
+- 编译耗时(s): 0.099637
+- 解释器耗时(s): 0.000065
+- TinyFive 模拟耗时(s): 0.171959
+- 总耗时(s): 0.282802
 - 基线动态指令数: null
 - 动态指令变化率(%): null
 - 是否退化: null
 
-- Cost model 指标: {'static_asm_instructions': 12, 'machine_instructions': None, 'code_size_bytes': None, 'dynamic_instructions': None, 'dynamic_load': None, 'dynamic_store': None, 'dynamic_mul': None, 'dynamic_add': None, 'dynamic_madd': None, 'dynamic_branch': None}
+- Cost model 指标: {'static_asm_instructions': 22, 'machine_instructions': None, 'code_size_bytes': None, 'dynamic_instructions': None, 'dynamic_load': 0, 'dynamic_store': 0, 'dynamic_mul': 0, 'dynamic_add': 0, 'dynamic_madd': 0, 'dynamic_branch': 0}
 - Cost model 对比: {}
 - Cost model 是否退化: null
 
@@ -56,18 +56,28 @@
   .globl main
   .type main, @function
 main:
+  addi sp, sp, -16  # create stack frame
 .entry:
-    li t0, 0  # const 0
-    bnez t1, if_then1
+    li t3, 0  # const 0
+    sw t0, 12(sp)  # spill flag [regalloc:spill]
+    sw t1, 8(sp)  # spill a [regalloc:spill]
+    sw t2, 4(sp)  # spill b [regalloc:spill]
+    bnez t0, if_then1
     j if_else2
 .if_then1:
-    add t4, t2, t3
-    mv a0, t4  # return value
+    lw t0, 8(sp)  # reload a [regalloc:reload]
+    lw t1, 4(sp)  # reload b [regalloc:reload]
+    add t2, t0, t1
+    mv a0, t2  # return value
+    sw t0, 8(sp)  # spill a [regalloc:spill]
+    sw t1, 4(sp)  # spill b [regalloc:spill]
     jalr zero, ra  # ret
     j if_end3
 .if_else2:
-    sub t5, t2, t3
-    mv a0, t5  # return value
+    lw t0, 8(sp)  # reload a [regalloc:reload]
+    lw t1, 4(sp)  # reload b [regalloc:reload]
+    sub t2, t0, t1
+    mv a0, t2  # return value
     jalr zero, ra  # ret
     j if_end3
 .if_end3:

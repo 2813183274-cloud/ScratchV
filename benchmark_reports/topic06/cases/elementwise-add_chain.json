@@ -17,7 +17,7 @@
   "interpreter_matched": true,
   "interpreter_error": null,
   "interpreter_failure_kind": null,
-  "interpreter_time_sec": 0.12835399992763996,
+  "interpreter_time_sec": 0.13167809997685254,
   "backend_outputs_match": true,
   "tinyfive_status": "PASS",
   "tinyfive_failure_kind": null,
@@ -27,7 +27,7 @@
   "initial_registers": {
     "t0": 2,
     "t1": 3,
-    "t3": 4
+    "t2": 4
   },
   "register_map": "build/topic06/add_chain.registers.json",
   "backend": "tinyfive",
@@ -134,9 +134,9 @@
   "compile_error": null,
   "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\elementwise\\add_chain.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain.registers.json'",
   "compile_log": null,
-  "compile_time_sec": 0.08758619998116046,
-  "simulation_time_sec": 0.1567648999625817,
-  "total_time_sec": 0.8240788999246433,
+  "compile_time_sec": 0.09103920008055866,
+  "simulation_time_sec": 0.1631825000513345,
+  "total_time_sec": 0.8662076999899,
   "benchmark_runs": 3,
   "benchmark_stopped_reason": null,
   "avg_instr_count": 4.0,

@@ -6,11 +6,11 @@
 - 运行模式: benchmark
 - 类别筛选: null
 - 名称筛选: null
-- 生成时间: 2026-09-14 22:48:51
+- 生成时间: 2026-09-20 10:47:03
 - 用例总数: 23
-- 通过数量: 12
-- 失败数量: 11
-- 通过率: 52.2%
+- 通过数量: 9
+- 失败数量: 14
+- 通过率: 39.1%
 - 测试目录: `tests/topic06/cases`
 - 汇编输出目录: `build/topic06`
 - 性能基线文件: `benchmarks/topic06/baseline.json`
@@ -22,29 +22,29 @@
 
 | 用例 | 类别 | 状态 | 编译返回码 | 编译日志 | 模拟后端 | 指令数 | Benchmark 次数 | Benchmark 停止原因 | 平均指令数 | 95% 置信区间 | 最小 | 最大 | 编译耗时(s) | 模拟耗时(s) | 总耗时(s) | 基线 | 变化量 | 变化率(%) | 退化阈值(%) | 是否退化 | 预期输出 | TinyFive 输出 | 输出匹配 | 汇编文件 |
 |---|---|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|
-| add_relu_relu | activation | PASS | 0 | null | tinyfive | 7 | 3 | null | 7.00 | ±0.00 | 7 | 7 | 0.0851 | 0.1467 | 0.8290 | 7.00 | 0.00 | 0.00 | 5.00 | False | 7 | 7 | True | build/topic06/add_relu_relu.s |
-| relu_add | activation | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0879 | 0.1541 | 0.8029 | 5.00 | 0.00 | 0.00 | 5.00 | False | 3 | 3 | True | build/topic06/relu_add.s |
-| relu_only | activation | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0860 | 0.1545 | 0.8123 | 5.00 | 0.00 | 0.00 | 5.00 | False | 0 | 0 | True | build/topic06/relu_only.s |
-| relu_twice | activation | PASS | 0 | null | tinyfive | 6 | 3 | null | 6.00 | ±0.00 | 6 | 6 | 0.0864 | 0.1509 | 0.8119 | 6.00 | 0.00 | 0.00 | 5.00 | False | 4 | 4 | True | build/topic06/relu_twice.s |
-| if_else | branch | FAIL | 0 | null | timeout | 0 | 0 | benchmark skipped: initial simulation timeout | null | null | null | null | 0.0877 | 5.0240 | 5.1174 | null | null | null | 5.00 | null | 5 | None | False | build/topic06/if_else.s |
-| if_relu | branch | FAIL | 0 | null | timeout | 0 | 0 | benchmark skipped: initial simulation timeout | null | null | null | null | 0.0959 | 5.0234 | 5.1205 | null | null | null | 5.00 | null | 0 | None | False | build/topic06/if_relu.s |
-| if_then | branch | FAIL | 0 | null | timeout | 0 | 0 | benchmark skipped: initial simulation timeout | null | null | null | null | 0.0892 | 5.0158 | 5.1061 | null | null | null | 5.00 | null | 13 | None | False | build/topic06/if_then.s |
-| add_chain | elementwise | PASS | 0 | null | tinyfive | 4 | 3 | null | 4.00 | ±0.00 | 4 | 4 | 0.0876 | 0.1568 | 0.8241 | 4.00 | 0.00 | 0.00 | 5.00 | False | 9 | 9 | True | build/topic06/add_chain.s |
-| add_chain_3 | elementwise | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0856 | 0.1468 | 0.8015 | 5.00 | 0.00 | 0.00 | 5.00 | False | 14 | 14 | True | build/topic06/add_chain_3.s |
-| add_fan_in_4 | elementwise | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0850 | 0.1628 | 0.8475 | 5.00 | 0.00 | 0.00 | 5.00 | False | 10 | 10 | True | build/topic06/add_fan_in_4.s |
-| add_reuse | elementwise | PASS | 0 | null | tinyfive | 4 | 3 | null | 4.00 | ±0.00 | 4 | 4 | 0.1064 | 0.1612 | 0.8810 | 4.00 | 0.00 | 0.00 | 5.00 | False | 10 | 10 | True | build/topic06/add_reuse.s |
-| vector_add | elementwise | PASS | 0 | null | tinyfive | 3 | 3 | null | 3.00 | ±0.00 | 3 | 3 | 0.0854 | 0.1476 | 0.8187 | 3.00 | 0.00 | 0.00 | 5.00 | False | 5 | 5 | True | build/topic06/vector_add.s |
-| loop_add_4 | loop | PASS | 0 | null | tinyfive | 22 | 3 | null | 22.00 | ±0.00 | 22 | 22 | 0.0913 | 0.1559 | 0.7475 | 22.00 | 0.00 | 0.00 | 5.00 | False | 5 | 5 | True | build/topic06/loop_add_4.s |
-| loop_add_chain_4 | loop | PASS | 0 | null | tinyfive | 26 | 3 | null | 26.00 | ±0.00 | 26 | 26 | 0.0866 | 0.1573 | 0.7031 | 26.00 | 0.00 | 0.00 | 5.00 | False | 9 | 9 | True | build/topic06/loop_add_chain_4.s |
-| loop_relu_add_4 | loop | PASS | 0 | null | tinyfive | 30 | 3 | null | 30.00 | ±0.00 | 30 | 30 | 0.0855 | 0.1567 | 0.7070 | 30.00 | 0.00 | 0.00 | 5.00 | False | 2 | 2 | True | build/topic06/loop_relu_add_4.s |
-| dot_4 | reduction | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0858 | 0.1493 | 0.3609 | null | null | null | 5.00 | null | 70 | 0 | False | build/topic06/dot_4.s |
-| dot_8 | reduction | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0836 | 0.1503 | 0.3586 | null | null | null | 5.00 | null | 36 | 0 | False | build/topic06/dot_8.s |
-| dot_relu_4 | reduction | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0843 | 0.1484 | 0.3574 | null | null | null | 5.00 | null | 0 | 0 | True | build/topic06/dot_relu_4.s |
-| dot_relu_8 | reduction | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0883 | 0.1534 | 0.3687 | null | null | null | 5.00 | null | 8 | 0 | False | build/topic06/dot_relu_8.s |
-| matmul_2x2 | tensor | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0863 | 0.1575 | 0.3701 | null | null | null | 5.00 | null | [[19, 22], [43, 50]] | 0 | False | build/topic06/matmul_2x2.s |
-| matmul_4x4 | tensor | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0879 | 0.1479 | 0.3601 | null | null | null | 5.00 | null | [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]] | 0 | False | build/topic06/matmul_4x4.s |
-| matmul_add_2x2 | tensor | FAIL | 0 | null | tinyfive | 4 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0843 | 0.1579 | 0.3648 | null | null | null | 5.00 | null | [[20, 23], [44, 51]] | 0 | False | build/topic06/matmul_add_2x2.s |
-| matmul_relu_2x2 | tensor | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0851 | 0.1587 | 0.3723 | null | null | null | 5.00 | null | [[0, 2], [0, 4]] | 0 | False | build/topic06/matmul_relu_2x2.s |
+| add_relu_relu | activation | PASS | 0 | null | tinyfive | 7 | 3 | null | 7.00 | ±0.00 | 7 | 7 | 0.0945 | 0.1623 | 0.8840 | 7.00 | 0.00 | 0.00 | 5.00 | False | 7 | 7 | True | build/topic06/add_relu_relu.s |
+| relu_add | activation | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0915 | 0.1592 | 0.8548 | 5.00 | 0.00 | 0.00 | 5.00 | False | 3 | 3 | True | build/topic06/relu_add.s |
+| relu_only | activation | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0919 | 0.1589 | 0.8500 | 5.00 | 0.00 | 0.00 | 5.00 | False | 0 | 0 | True | build/topic06/relu_only.s |
+| relu_twice | activation | PASS | 0 | null | tinyfive | 6 | 3 | null | 6.00 | ±0.00 | 6 | 6 | 0.0930 | 0.1619 | 0.8460 | 6.00 | 0.00 | 0.00 | 5.00 | False | 4 | 4 | True | build/topic06/relu_twice.s |
+| if_else | branch | FAIL | 0 | null | tinyfive | 0 | 0 | benchmark skipped: initial simulation failed | null | null | null | null | 0.0996 | 0.1720 | 0.2828 | null | null | null | 5.00 | null | 5 | None | False | build/topic06/if_else.s |
+| if_relu | branch | FAIL | 0 | null | tinyfive | 0 | 0 | benchmark skipped: initial simulation failed | null | null | null | null | 0.0907 | 0.1600 | 0.2544 | null | null | null | 5.00 | null | 0 | None | False | build/topic06/if_relu.s |
+| if_then | branch | FAIL | 0 | null | tinyfive | 0 | 0 | benchmark skipped: initial simulation failed | null | null | null | null | 0.0894 | 0.1546 | 0.2451 | null | null | null | 5.00 | null | 13 | None | False | build/topic06/if_then.s |
+| add_chain | elementwise | PASS | 0 | null | tinyfive | 4 | 3 | null | 4.00 | ±0.00 | 4 | 4 | 0.0910 | 0.1632 | 0.8662 | 4.00 | 0.00 | 0.00 | 5.00 | False | 9 | 9 | True | build/topic06/add_chain.s |
+| add_chain_3 | elementwise | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0926 | 0.1591 | 0.9218 | 5.00 | 0.00 | 0.00 | 5.00 | False | 14 | 14 | True | build/topic06/add_chain_3.s |
+| add_fan_in_4 | elementwise | PASS | 0 | null | tinyfive | 5 | 3 | null | 5.00 | ±0.00 | 5 | 5 | 0.0927 | 0.1575 | 0.8459 | 5.00 | 0.00 | 0.00 | 5.00 | False | 10 | 10 | True | build/topic06/add_fan_in_4.s |
+| add_reuse | elementwise | PASS | 0 | null | tinyfive | 4 | 3 | null | 4.00 | ±0.00 | 4 | 4 | 0.1003 | 0.1649 | 0.8640 | 4.00 | 0.00 | 0.00 | 5.00 | False | 10 | 10 | True | build/topic06/add_reuse.s |
+| vector_add | elementwise | PASS | 0 | null | tinyfive | 3 | 3 | null | 3.00 | ±0.00 | 3 | 3 | 0.0920 | 0.1591 | 0.8493 | 3.00 | 0.00 | 0.00 | 5.00 | False | 5 | 5 | True | build/topic06/vector_add.s |
+| loop_add_4 | loop | FAIL | 0 | null | tinyfive | 44 | 3 | null | 44.00 | ±0.00 | 44 | 44 | 0.0926 | 0.1612 | 0.7290 | 22.00 | 22.00 | 100.00 | 5.00 | True | 5 | 5 | True | build/topic06/loop_add_4.s |
+| loop_add_chain_4 | loop | FAIL | 0 | null | tinyfive | 61 | 3 | null | 61.00 | ±0.00 | 61 | 61 | 0.0955 | 0.1652 | 0.7368 | 26.00 | 35.00 | 134.62 | 5.00 | True | 9 | 9 | True | build/topic06/loop_add_chain_4.s |
+| loop_relu_add_4 | loop | FAIL | 0 | null | tinyfive | 60 | 3 | null | 60.00 | ±0.00 | 60 | 60 | 0.1042 | 0.1660 | 0.7554 | 30.00 | 30.00 | 100.00 | 5.00 | True | 2 | 2 | True | build/topic06/loop_relu_add_4.s |
+| dot_4 | reduction | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0915 | 0.1591 | 0.3811 | null | null | null | 5.00 | null | 70 | 0 | False | build/topic06/dot_4.s |
+| dot_8 | reduction | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0905 | 0.1599 | 0.3805 | null | null | null | 5.00 | null | 36 | 0 | False | build/topic06/dot_8.s |
+| dot_relu_4 | reduction | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0954 | 0.1665 | 0.3979 | null | null | null | 5.00 | null | 0 | 0 | True | build/topic06/dot_relu_4.s |
+| dot_relu_8 | reduction | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0923 | 0.1581 | 0.3830 | null | null | null | 5.00 | null | 8 | 0 | False | build/topic06/dot_relu_8.s |
+| matmul_2x2 | tensor | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0981 | 0.1606 | 0.3885 | null | null | null | 5.00 | null | [[19, 22], [43, 50]] | 0 | False | build/topic06/matmul_2x2.s |
+| matmul_4x4 | tensor | FAIL | 0 | null | tinyfive | 3 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0928 | 0.1612 | 0.3893 | null | null | null | 5.00 | null | [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]] | 0 | False | build/topic06/matmul_4x4.s |
+| matmul_add_2x2 | tensor | FAIL | 0 | null | tinyfive | 4 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0923 | 0.1648 | 0.4064 | null | null | null | 5.00 | null | [[20, 23], [44, 51]] | 0 | False | build/topic06/matmul_add_2x2.s |
+| matmul_relu_2x2 | tensor | FAIL | 0 | null | tinyfive | 5 | 0 | benchmark skipped: TinyFive input ABI unsupported | null | null | null | null | 0.0971 | 0.1592 | 0.3831 | null | null | null | 5.00 | null | [[0, 2], [0, 4]] | 0 | False | build/topic06/matmul_relu_2x2.s |
 
 ## 双后端能力矩阵
 
@@ -54,9 +54,9 @@
 | relu_add | activation | PASS | PASS | null | True | benchmark_reports/topic06/cases/activation-relu_add.md |
 | relu_only | activation | PASS | PASS | null | True | benchmark_reports/topic06/cases/activation-relu_only.md |
 | relu_twice | activation | PASS | PASS | null | True | benchmark_reports/topic06/cases/activation-relu_twice.md |
-| if_else | branch | UNSUPPORTED | TIMEOUT | simulation_timeout | null | benchmark_reports/topic06/cases/branch-if_else.md |
-| if_relu | branch | UNSUPPORTED | TIMEOUT | simulation_timeout | null | benchmark_reports/topic06/cases/branch-if_relu.md |
-| if_then | branch | UNSUPPORTED | TIMEOUT | simulation_timeout | null | benchmark_reports/topic06/cases/branch-if_then.md |
+| if_else | branch | UNSUPPORTED | ERROR | simulation_error | null | benchmark_reports/topic06/cases/branch-if_else.md |
+| if_relu | branch | UNSUPPORTED | ERROR | simulation_error | null | benchmark_reports/topic06/cases/branch-if_relu.md |
+| if_then | branch | UNSUPPORTED | ERROR | simulation_error | null | benchmark_reports/topic06/cases/branch-if_then.md |
 | add_chain | elementwise | PASS | PASS | null | True | benchmark_reports/topic06/cases/elementwise-add_chain.md |
 | add_chain_3 | elementwise | PASS | PASS | null | True | benchmark_reports/topic06/cases/elementwise-add_chain_3.md |
 | add_fan_in_4 | elementwise | PASS | PASS | null | True | benchmark_reports/topic06/cases/elementwise-add_fan_in_4.md |
@@ -73,11 +73,6 @@
 | matmul_4x4 | tensor | PASS | UNSUPPORTED | input_abi_unsupported | null | benchmark_reports/topic06/cases/tensor-matmul_4x4.md |
 | matmul_add_2x2 | tensor | PASS | UNSUPPORTED | input_abi_unsupported | null | benchmark_reports/topic06/cases/tensor-matmul_add_2x2.md |
 | matmul_relu_2x2 | tensor | PASS | UNSUPPORTED | input_abi_unsupported | null | benchmark_reports/topic06/cases/tensor-matmul_relu_2x2.md |
-
-## 性能图表
-
-![课程版指令数图表](course_report_instructions.png)
-
 
 ## 用例详情
 
@@ -112,9 +107,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 7
 - 最大指令数: 7
-- 编译耗时(s): 0.0851
-- 模拟耗时(s): 0.1467
-- 总耗时(s): 0.8290
+- 编译耗时(s): 0.0945
+- 模拟耗时(s): 0.1623
+- 总耗时(s): 0.8840
 - 基线指令数: 7.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -154,9 +149,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 5
 - 最大指令数: 5
-- 编译耗时(s): 0.0879
-- 模拟耗时(s): 0.1541
-- 总耗时(s): 0.8029
+- 编译耗时(s): 0.0915
+- 模拟耗时(s): 0.1592
+- 总耗时(s): 0.8548
 - 基线指令数: 5.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -196,9 +191,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 5
 - 最大指令数: 5
-- 编译耗时(s): 0.0860
-- 模拟耗时(s): 0.1545
-- 总耗时(s): 0.8123
+- 编译耗时(s): 0.0919
+- 模拟耗时(s): 0.1589
+- 总耗时(s): 0.8500
 - 基线指令数: 5.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -238,9 +233,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 6
 - 最大指令数: 6
-- 编译耗时(s): 0.0864
-- 模拟耗时(s): 0.1509
-- 总耗时(s): 0.8119
+- 编译耗时(s): 0.0930
+- 模拟耗时(s): 0.1619
+- 总耗时(s): 0.8460
 - 基线指令数: 6.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -259,30 +254,30 @@
 - DSLInterpreter 状态: UNSUPPORTED
 - DSLInterpreter 输出: None
 - DSLInterpreter 错误: unsupported control flow: if
-- TinyFive 状态: TIMEOUT
-- TinyFive 失败类型: simulation_timeout
+- TinyFive 状态: ERROR
+- TinyFive 失败类型: simulation_error
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: null
-- TinyFive 初始寄存器: {'t1': 0, 't2': 9, 't3': 4}
-- 模拟后端: timeout
+- TinyFive 初始寄存器: {'t0': 0, 't1': 9, 't2': 4}
+- 模拟后端: tinyfive
 - 指令数: 0
-- 静态汇编指令数: 12
+- 静态汇编指令数: 22
 - 编码后机器指令数: null
 - 代码大小(bytes): null
-- TinyFive 分类计数: {}
+- TinyFive 分类计数: {'total': 0, 'load': 0, 'store': 0, 'mul': 0, 'add': 0, 'madd': 0, 'branch': 0}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 0
-- Benchmark 停止原因: benchmark skipped: initial simulation timeout
+- Benchmark 停止原因: benchmark skipped: initial simulation failed
 - 平均指令数: null
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0877
-- 模拟耗时(s): 5.0240
-- 总耗时(s): 5.1174
+- 编译耗时(s): 0.0996
+- 模拟耗时(s): 0.1720
+- 总耗时(s): 0.2828
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -301,30 +296,30 @@
 - DSLInterpreter 状态: UNSUPPORTED
 - DSLInterpreter 输出: None
 - DSLInterpreter 错误: unsupported control flow: if
-- TinyFive 状态: TIMEOUT
-- TinyFive 失败类型: simulation_timeout
+- TinyFive 状态: ERROR
+- TinyFive 失败类型: simulation_error
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: null
-- TinyFive 初始寄存器: {'t1': 1}
-- 模拟后端: timeout
+- TinyFive 初始寄存器: {'t0': 1}
+- 模拟后端: tinyfive
 - 指令数: 0
-- 静态汇编指令数: 11
+- 静态汇编指令数: 17
 - 编码后机器指令数: null
 - 代码大小(bytes): null
-- TinyFive 分类计数: {}
+- TinyFive 分类计数: {'total': 0, 'load': 0, 'store': 0, 'mul': 0, 'add': 0, 'madd': 0, 'branch': 0}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 0
-- Benchmark 停止原因: benchmark skipped: initial simulation timeout
+- Benchmark 停止原因: benchmark skipped: initial simulation failed
 - 平均指令数: null
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0959
-- 模拟耗时(s): 5.0234
-- 总耗时(s): 5.1205
+- 编译耗时(s): 0.0907
+- 模拟耗时(s): 0.1600
+- 总耗时(s): 0.2544
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -343,30 +338,30 @@
 - DSLInterpreter 状态: UNSUPPORTED
 - DSLInterpreter 输出: None
 - DSLInterpreter 错误: unsupported control flow: if
-- TinyFive 状态: TIMEOUT
-- TinyFive 失败类型: simulation_timeout
+- TinyFive 状态: ERROR
+- TinyFive 失败类型: simulation_error
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: null
-- TinyFive 初始寄存器: {'t1': 1, 't2': 9, 't3': 4}
-- 模拟后端: timeout
+- TinyFive 初始寄存器: {'t0': 1, 't1': 9, 't2': 4}
+- 模拟后端: tinyfive
 - 指令数: 0
-- 静态汇编指令数: 12
+- 静态汇编指令数: 22
 - 编码后机器指令数: null
 - 代码大小(bytes): null
-- TinyFive 分类计数: {}
+- TinyFive 分类计数: {'total': 0, 'load': 0, 'store': 0, 'mul': 0, 'add': 0, 'madd': 0, 'branch': 0}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 0
-- Benchmark 停止原因: benchmark skipped: initial simulation timeout
+- Benchmark 停止原因: benchmark skipped: initial simulation failed
 - 平均指令数: null
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0892
-- 模拟耗时(s): 5.0158
-- 总耗时(s): 5.1061
+- 编译耗时(s): 0.0894
+- 模拟耗时(s): 0.1546
+- 总耗时(s): 0.2451
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -389,7 +384,7 @@
 - TinyFive 失败类型: null
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: True
-- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't3': 4}
+- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't2': 4}
 - 模拟后端: tinyfive
 - 指令数: 4
 - 静态汇编指令数: 4
@@ -406,9 +401,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 4
 - 最大指令数: 4
-- 编译耗时(s): 0.0876
-- 模拟耗时(s): 0.1568
-- 总耗时(s): 0.8241
+- 编译耗时(s): 0.0910
+- 模拟耗时(s): 0.1632
+- 总耗时(s): 0.8662
 - 基线指令数: 4.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -431,7 +426,7 @@
 - TinyFive 失败类型: null
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: True
-- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't3': 4, 't5': 5}
+- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't2': 4, 't3': 5}
 - 模拟后端: tinyfive
 - 指令数: 5
 - 静态汇编指令数: 5
@@ -448,9 +443,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 5
 - 最大指令数: 5
-- 编译耗时(s): 0.0856
-- 模拟耗时(s): 0.1468
-- 总耗时(s): 0.8015
+- 编译耗时(s): 0.0926
+- 模拟耗时(s): 0.1591
+- 总耗时(s): 0.9218
 - 基线指令数: 5.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -473,7 +468,7 @@
 - TinyFive 失败类型: null
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: True
-- TinyFive 初始寄存器: {'t0': 1, 't1': 2, 't3': 3, 't4': 4}
+- TinyFive 初始寄存器: {'t0': 1, 't1': 2, 't2': 3, 't3': 4}
 - 模拟后端: tinyfive
 - 指令数: 5
 - 静态汇编指令数: 5
@@ -490,9 +485,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 5
 - 最大指令数: 5
-- 编译耗时(s): 0.0850
-- 模拟耗时(s): 0.1628
-- 总耗时(s): 0.8475
+- 编译耗时(s): 0.0927
+- 模拟耗时(s): 0.1575
+- 总耗时(s): 0.8459
 - 基线指令数: 5.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -532,9 +527,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 4
 - 最大指令数: 4
-- 编译耗时(s): 0.1064
-- 模拟耗时(s): 0.1612
-- 总耗时(s): 0.8810
+- 编译耗时(s): 0.1003
+- 模拟耗时(s): 0.1649
+- 总耗时(s): 0.8640
 - 基线指令数: 4.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -574,9 +569,9 @@
 - 95% 置信区间: ±0.00
 - 最小指令数: 3
 - 最大指令数: 3
-- 编译耗时(s): 0.0854
-- 模拟耗时(s): 0.1476
-- 总耗时(s): 0.8187
+- 编译耗时(s): 0.0920
+- 模拟耗时(s): 0.1591
+- 总耗时(s): 0.8493
 - 基线指令数: 3.00
 - 性能变化量: 0.00
 - 性能变化率(%): 0.00
@@ -601,30 +596,30 @@
 - 两后端输出一致: null
 - TinyFive 初始寄存器: {'t0': 2, 't1': 3}
 - 模拟后端: tinyfive
-- 指令数: 22
-- 静态汇编指令数: 7
-- 编码后机器指令数: 8
-- 代码大小(bytes): 32
-- TinyFive 分类计数: {'total': 22, 'load': 0, 'store': 0, 'mul': 0, 'add': 12, 'madd': 0, 'branch': 5}
+- 指令数: 44
+- 静态汇编指令数: 15
+- 编码后机器指令数: 16
+- 代码大小(bytes): 64
+- TinyFive 分类计数: {'total': 44, 'load': 10, 'store': 11, 'mul': 0, 'add': 13, 'madd': 0, 'branch': 5}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 3
 - Benchmark 停止原因: null
-- 平均指令数: 22.00
+- 平均指令数: 44.00
 - 95% 置信区间: ±0.00
-- 最小指令数: 22
-- 最大指令数: 22
-- 编译耗时(s): 0.0913
-- 模拟耗时(s): 0.1559
-- 总耗时(s): 0.7475
+- 最小指令数: 44
+- 最大指令数: 44
+- 编译耗时(s): 0.0926
+- 模拟耗时(s): 0.1612
+- 总耗时(s): 0.7290
 - 基线指令数: 22.00
-- 性能变化量: 0.00
-- 性能变化率(%): 0.00
+- 性能变化量: 22.00
+- 性能变化率(%): 100.00
 - 性能退化阈值(%): 5.00
-- 是否性能退化: False
-- Cost model 是否退化: False
+- 是否性能退化: True
+- Cost model 是否退化: True
 - 汇编文件: build/topic06/loop_add_4.s
 
 ### loop_add_chain_4
@@ -641,32 +636,32 @@
 - TinyFive 失败类型: null
 - TinyFive 输入 ABI 可用: True
 - 两后端输出一致: null
-- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't4': 4}
+- TinyFive 初始寄存器: {'t0': 2, 't1': 3, 't2': 4}
 - 模拟后端: tinyfive
-- 指令数: 26
-- 静态汇编指令数: 8
-- 编码后机器指令数: 9
-- 代码大小(bytes): 36
-- TinyFive 分类计数: {'total': 26, 'load': 0, 'store': 0, 'mul': 0, 'add': 16, 'madd': 0, 'branch': 5}
+- 指令数: 61
+- 静态汇编指令数: 20
+- 编码后机器指令数: 21
+- 代码大小(bytes): 84
+- TinyFive 分类计数: {'total': 61, 'load': 18, 'store': 16, 'mul': 0, 'add': 17, 'madd': 0, 'branch': 5}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 3
 - Benchmark 停止原因: null
-- 平均指令数: 26.00
+- 平均指令数: 61.00
 - 95% 置信区间: ±0.00
-- 最小指令数: 26
-- 最大指令数: 26
-- 编译耗时(s): 0.0866
-- 模拟耗时(s): 0.1573
-- 总耗时(s): 0.7031
+- 最小指令数: 61
+- 最大指令数: 61
+- 编译耗时(s): 0.0955
+- 模拟耗时(s): 0.1652
+- 总耗时(s): 0.7368
 - 基线指令数: 26.00
-- 性能变化量: 0.00
-- 性能变化率(%): 0.00
+- 性能变化量: 35.00
+- 性能变化率(%): 134.62
 - 性能退化阈值(%): 5.00
-- 是否性能退化: False
-- Cost model 是否退化: False
+- 是否性能退化: True
+- Cost model 是否退化: True
 - 汇编文件: build/topic06/loop_add_chain_4.s
 
 ### loop_relu_add_4
@@ -685,30 +680,30 @@
 - 两后端输出一致: null
 - TinyFive 初始寄存器: {'t0': -4, 't1': 6}
 - 模拟后端: tinyfive
-- 指令数: 30
-- 静态汇编指令数: 8
-- 编码后机器指令数: 12
-- 代码大小(bytes): 48
-- TinyFive 分类计数: {'total': 30, 'load': 0, 'store': 0, 'mul': 0, 'add': 16, 'madd': 0, 'branch': 9}
+- 指令数: 60
+- 静态汇编指令数: 18
+- 编码后机器指令数: 22
+- 代码大小(bytes): 88
+- TinyFive 分类计数: {'total': 60, 'load': 14, 'store': 15, 'mul': 0, 'add': 17, 'madd': 0, 'branch': 9}
 - 编译返回码: 0
 - 编译是否超时: False
 - 编译错误摘要: null
 - 编译失败日志: null
 - Benchmark 重复次数: 3
 - Benchmark 停止原因: null
-- 平均指令数: 30.00
+- 平均指令数: 60.00
 - 95% 置信区间: ±0.00
-- 最小指令数: 30
-- 最大指令数: 30
-- 编译耗时(s): 0.0855
-- 模拟耗时(s): 0.1567
-- 总耗时(s): 0.7070
+- 最小指令数: 60
+- 最大指令数: 60
+- 编译耗时(s): 0.1042
+- 模拟耗时(s): 0.1660
+- 总耗时(s): 0.7554
 - 基线指令数: 30.00
-- 性能变化量: 0.00
-- 性能变化率(%): 0.00
+- 性能变化量: 30.00
+- 性能变化率(%): 100.00
 - 性能退化阈值(%): 5.00
-- 是否性能退化: False
-- Cost model 是否退化: False
+- 是否性能退化: True
+- Cost model 是否退化: True
 - 汇编文件: build/topic06/loop_relu_add_4.s
 
 ### dot_4
@@ -742,9 +737,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0858
-- 模拟耗时(s): 0.1493
-- 总耗时(s): 0.3609
+- 编译耗时(s): 0.0915
+- 模拟耗时(s): 0.1591
+- 总耗时(s): 0.3811
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -784,9 +779,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0836
-- 模拟耗时(s): 0.1503
-- 总耗时(s): 0.3586
+- 编译耗时(s): 0.0905
+- 模拟耗时(s): 0.1599
+- 总耗时(s): 0.3805
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -826,9 +821,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0843
-- 模拟耗时(s): 0.1484
-- 总耗时(s): 0.3574
+- 编译耗时(s): 0.0954
+- 模拟耗时(s): 0.1665
+- 总耗时(s): 0.3979
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -868,9 +863,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0883
-- 模拟耗时(s): 0.1534
-- 总耗时(s): 0.3687
+- 编译耗时(s): 0.0923
+- 模拟耗时(s): 0.1581
+- 总耗时(s): 0.3830
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -910,9 +905,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0863
-- 模拟耗时(s): 0.1575
-- 总耗时(s): 0.3701
+- 编译耗时(s): 0.0981
+- 模拟耗时(s): 0.1606
+- 总耗时(s): 0.3885
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -952,9 +947,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0879
-- 模拟耗时(s): 0.1479
-- 总耗时(s): 0.3601
+- 编译耗时(s): 0.0928
+- 模拟耗时(s): 0.1612
+- 总耗时(s): 0.3893
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -994,9 +989,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0843
-- 模拟耗时(s): 0.1579
-- 总耗时(s): 0.3648
+- 编译耗时(s): 0.0923
+- 模拟耗时(s): 0.1648
+- 总耗时(s): 0.4064
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null
@@ -1036,9 +1031,9 @@
 - 95% 置信区间: null
 - 最小指令数: null
 - 最大指令数: null
-- 编译耗时(s): 0.0851
-- 模拟耗时(s): 0.1587
-- 总耗时(s): 0.3723
+- 编译耗时(s): 0.0971
+- 模拟耗时(s): 0.1592
+- 总耗时(s): 0.3831
 - 基线指令数: null
 - 性能变化量: null
 - 性能变化率(%): null

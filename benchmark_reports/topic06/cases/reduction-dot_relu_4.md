@@ -27,10 +27,10 @@
 - 代码大小(bytes): 28
 - TinyFive 动态执行指令数: 5
 - TinyFive 分类计数: {'total': 5, 'load': 0, 'store': 0, 'mul': 1, 'add': 2, 'madd': 0, 'branch': 1}
-- 编译耗时(s): 0.084265
-- 解释器耗时(s): 0.123364
-- TinyFive 模拟耗时(s): 0.148351
-- 总耗时(s): 0.357368
+- 编译耗时(s): 0.095443
+- 解释器耗时(s): 0.134643
+- TinyFive 模拟耗时(s): 0.166520
+- 总耗时(s): 0.397873
 - 基线动态指令数: null
 - 动态指令变化率(%): null
 - 是否退化: null
@@ -58,7 +58,7 @@
 main:
 .entry:
     mul t2, t0, t1  # dot: a * b
-    max t3, t2, 0
-    mv a0, t3  # return value
+    max t0, t2, 0
+    mv a0, t0  # return value
     jalr zero, ra  # ret
 ```
