@@ -518,36 +518,12 @@ def summarize_backend_matrix(results):
     }
 
 
-def summarize_benchmark_runs(instr_counts):
-    if not instr_counts:
-        return {
-            "runs": 0,
-            "avg_instr_count": None,
-            "min_instr_count": None,
-            "max_instr_count": None,
-            "ci95_instr_count": None,
-        }
-    avg = sum(instr_counts) / len(instr_counts)
-    if len(instr_counts) > 1:
-        variance = sum((value - avg) ** 2 for value in instr_counts) / (len(instr_counts) - 1)
-        ci95 = 1.96 * math.sqrt(variance) / math.sqrt(len(instr_counts))
-    else:
-        ci95 = 0.0
-    return {
-        "runs": len(instr_counts),
-        "avg_instr_count": avg,
-        "min_instr_count": min(instr_counts),
-        "max_instr_count": max(instr_counts),
-        "ci95_instr_count": ci95,
-    }
-
-
 def detect_regression(
-    avg_instr_count,
+    current_instr_count,
     baseline_instr_count,
     threshold_pct=REGRESSION_THRESHOLD_PCT,
 ):
-    delta = avg_instr_count - baseline_instr_count
+    delta = current_instr_count - baseline_instr_count
     delta_pct = 0.0 if baseline_instr_count == 0 else (delta / baseline_instr_count) * 100.0
     return {
         "baseline_instr_count": baseline_instr_count,
@@ -561,13 +537,9 @@ def detect_regression(
 def build_cost_model_metrics(
     static_asm_instruction_count,
     sim_result,
-    avg_instr_count=None,
-    avg_perf_counters=None,
 ):
-    dynamic_count = avg_instr_count
-    if dynamic_count is None and sim_result.get("success"):
-        dynamic_count = sim_result.get("instr_count")
-    perf_counters = avg_perf_counters or sim_result.get("perf_counters") or {}
+    dynamic_count = sim_result.get("instr_count") if sim_result.get("success") else None
+    perf_counters = sim_result.get("perf_counters") or {}
     metrics = {
         "static_asm_instructions": static_asm_instruction_count,
         "machine_instructions": sim_result.get("machine_code_instructions"),
@@ -577,16 +549,6 @@ def build_cost_model_metrics(
     for name in ("load", "store", "mul", "add", "madd", "branch"):
         metrics[f"dynamic_{name}"] = perf_counters.get(name)
     return metrics
-
-
-def summarize_perf_counters(samples):
-    if not samples:
-        return {}
-    keys = set().union(*(sample.keys() for sample in samples))
-    return {
-        key: sum(float(sample.get(key, 0)) for sample in samples) / len(samples)
-        for key in sorted(keys)
-    }
 
 
 def detect_cost_model_regressions(current, baseline, threshold_pct):
@@ -628,24 +590,27 @@ def load_baseline():
     return payload
 
 
+def baseline_instruction_count(entry):
+    if not entry:
+        return None
+    return entry.get("dynamic_instruction_count")
+
+
 def save_baseline(results, preserve_existing=False):
     BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
     cases = load_baseline() if preserve_existing else {}
     for r in results:
         if (
-            r["avg_instr_count"] is None
-            or r.get("tinyfive_status") != "PASS"
+            r.get("tinyfive_status") != "PASS"
             or r.get("backend_outputs_match") is False
         ):
             continue
         cases[r["name"]] = {
             "category": r["category"],
-            "avg_instr_count": r["avg_instr_count"],
-            "runs": r["benchmark_runs"],
+            "dynamic_instruction_count": r["instr_count"],
             "cost_model": r["cost_model"],
         }
     payload = {
-        "schema_version": 2,
         "primary_metric": "dynamic_instructions",
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "environment": {
@@ -697,8 +662,7 @@ def write_chart(results):
 
 
 def _reported_instr_count(result):
-    average = result.get("avg_instr_count")
-    return result["instr_count"] if average is None else average
+    return result["instr_count"] or 0
 
 
 def _report_value(value, precision=None, prefix=""):
@@ -718,15 +682,12 @@ def generate_unified_report_text_cn(
     selection_filter=None,
     include_chart=False,
 ):
-    mode = results[0]["mode"] if results else "normal"
     pass_rate = 0.0 if not results else passed / len(results) * 100.0
     lines = [
         "# ScratchV DSL 编译器性能测试报告\n\n",
         "## 测试概览\n\n",
-        f"- Schema 版本: 2\n",
-        f"- 运行模式: {mode}\n",
-        f"- 类别筛选: {_report_value(selection_category)}\n",
-        f"- 名称筛选: {_report_value(selection_filter)}\n",
+        f"- 用例类别筛选: {_report_value(selection_category)}\n",
+        f"- 用例名称筛选: {_report_value(selection_filter)}\n",
         f"- 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
         f"- 用例总数: {len(results)}\n",
         f"- 通过数量: {passed}\n",
@@ -739,43 +700,21 @@ def generate_unified_report_text_cn(
         f"- 单次编译超时: {COMPILE_TIMEOUT_SEC:.0f}s\n",
         f"- 单次模拟超时: {SIMULATION_TIMEOUT_SEC:.0f}s\n\n",
         "## 测试结果\n\n",
-        "| 用例 | 类别 | 状态 | 编译返回码 | 编译日志 | 模拟后端 | 指令数 | Benchmark 次数 | Benchmark 停止原因 | 平均指令数 | 95% 置信区间 | 最小 | 最大 | 编译耗时(s) | 模拟耗时(s) | 总耗时(s) | 基线 | 变化量 | 变化率(%) | 退化阈值(%) | 是否退化 | 预期输出 | TinyFive 输出 | 输出匹配 | 汇编文件 |\n",
-        "|---|---|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|\n",
+        "| 用例 | 类别 | 解释器状态 | TinyFive 状态 | 失败类型 | TinyFive 动态指令数 | 基线 | 变化率(%) | 是否退化 | 预期输出 | 解释器输出 | TinyFive 输出 |\n",
+        "|---|---|---|---|---|---:|---:|---:|---|---|---|---|\n",
     ]
 
-    for result in results:
-        lines.append(
-            f"| {result['name']} | {result['category']} | {result['status']} | "
-            f"{result['compile_returncode']} | {_report_value(result['compile_log'])} | "
-            f"{result['backend']} | {result['instr_count']} | "
-            f"{_report_value(result['benchmark_runs'])} | "
-            f"{_report_value(result['benchmark_stopped_reason'])} | "
-            f"{_report_value(result['avg_instr_count'], 2)} | "
-            f"{_report_value(result['ci95_instr_count'], 2, '±')} | "
-            f"{_report_value(result['min_instr_count'])} | "
-            f"{_report_value(result['max_instr_count'])} | "
-            f"{result['compile_time_sec']:.4f} | {result['simulation_time_sec']:.4f} | "
-            f"{result['total_time_sec']:.4f} | "
-            f"{_report_value(result['baseline_instr_count'], 2)} | "
-            f"{_report_value(result['delta'], 2)} | "
-            f"{_report_value(result['delta_pct'], 2)} | "
-            f"{_report_value(result['threshold_pct'], 2)} | "
-            f"{_report_value(result['regressed'])} | {_markdown_cell(result['expected'])} | "
-            f"{_markdown_cell(result['actual'])} | {result['matched']} | {result['asm']} |\n"
-        )
-
-    lines.extend([
-        "\n## 双后端能力矩阵\n\n",
-        "| 用例 | 类别 | DSLInterpreter | TinyFive | TinyFive 失败类型 | 两后端输出一致 | 单用例报告 |\n",
-        "|---|---|---|---|---|---|---|\n",
-    ])
     for result in results:
         lines.append(
             f"| {result['name']} | {result['category']} | "
             f"{result['interpreter_status']} | {result['tinyfive_status']} | "
             f"{_report_value(result['tinyfive_failure_kind'])} | "
-            f"{_report_value(result['backend_outputs_match'])} | "
-            f"{result['case_report_md']} |\n"
+            f"{_report_value(result['instr_count'])} | "
+            f"{_report_value(result['baseline_instr_count'], 2)} | "
+            f"{_report_value(result['delta_pct'], 2)} | "
+            f"{_report_value(result['regressed'])} | {_markdown_cell(_report_value(result['expected']))} | "
+            f"{_markdown_cell(_report_value(result['interpreter_actual']))} | "
+            f"{_markdown_cell(_report_value(result['actual']))} |\n"
         )
 
     if include_chart:
@@ -783,50 +722,11 @@ def generate_unified_report_text_cn(
             "\n## 性能图表\n\n",
             f"![课程版指令数图表]({CHART_FILE.name})\n\n",
         ])
-    lines.append("\n## 用例详情\n\n")
-    for result in results:
-        lines.extend([
-            f"### {result['name']}\n\n",
-            f"- 类别: {result['category']}\n",
-            f"- 描述: {result['description']}\n",
-            f"- 预期输出 ({result['expected_type']}): {result['expected']}\n",
-            f"- TinyFive 输出: {result['actual']}\n",
-            f"- 输出是否匹配: {result['matched']}\n",
-            f"- DSLInterpreter 状态: {result['interpreter_status']}\n",
-            f"- DSLInterpreter 输出: {result['interpreter_actual']}\n",
-            f"- DSLInterpreter 错误: {_report_value(result['interpreter_error'])}\n",
-            f"- TinyFive 状态: {result['tinyfive_status']}\n",
-            f"- TinyFive 失败类型: {_report_value(result['tinyfive_failure_kind'])}\n",
-            f"- TinyFive 输入 ABI 可用: {result['tinyfive_input_abi_supported']}\n",
-            f"- 两后端输出一致: {_report_value(result['backend_outputs_match'])}\n",
-            f"- TinyFive 初始寄存器: {result['initial_registers']}\n",
-            f"- 模拟后端: {result['backend']}\n",
-            f"- 指令数: {result['instr_count']}\n",
-            f"- 静态汇编指令数: {_report_value(result['static_asm_instruction_count'])}\n",
-            f"- 编码后机器指令数: {_report_value(result['machine_code_instruction_count'])}\n",
-            f"- 代码大小(bytes): {_report_value(result['code_size_bytes'])}\n",
-            f"- TinyFive 分类计数: {result['perf_counters']}\n",
-            f"- 编译返回码: {result['compile_returncode']}\n",
-            f"- 编译是否超时: {result['compile_timed_out']}\n",
-            f"- 编译错误摘要: {_report_value(result['compile_error'])}\n",
-            f"- 编译失败日志: {_report_value(result['compile_log'])}\n",
-            f"- Benchmark 重复次数: {_report_value(result['benchmark_runs'])}\n",
-            f"- Benchmark 停止原因: {_report_value(result['benchmark_stopped_reason'])}\n",
-            f"- 平均指令数: {_report_value(result['avg_instr_count'], 2)}\n",
-            f"- 95% 置信区间: {_report_value(result['ci95_instr_count'], 2, '±')}\n",
-            f"- 最小指令数: {_report_value(result['min_instr_count'])}\n",
-            f"- 最大指令数: {_report_value(result['max_instr_count'])}\n",
-            f"- 编译耗时(s): {result['compile_time_sec']:.4f}\n",
-            f"- 模拟耗时(s): {result['simulation_time_sec']:.4f}\n",
-            f"- 总耗时(s): {result['total_time_sec']:.4f}\n",
-            f"- 基线指令数: {_report_value(result['baseline_instr_count'], 2)}\n",
-            f"- 性能变化量: {_report_value(result['delta'], 2)}\n",
-            f"- 性能变化率(%): {_report_value(result['delta_pct'], 2)}\n",
-            f"- 性能退化阈值(%): {_report_value(result['threshold_pct'], 2)}\n",
-            f"- 是否性能退化: {_report_value(result['regressed'])}\n",
-            f"- Cost model 是否退化: {_report_value(result['cost_model_regressed'])}\n",
-            f"- 汇编文件: {result['asm']}\n\n",
-        ])
+    lines.extend([
+        "\n## 单用例报告\n\n",
+        "每个用例的后端结果、性能指标、耗时诊断和生成汇编见 "
+        "[`cases/`](cases/) 目录。\n",
+    ])
     return "".join(lines)
 
 
@@ -863,41 +763,30 @@ def write_unified_html_report_cn(
 <body>
   <h1>ScratchV DSL 编译器性能测试报告</h1>
   <div class="summary">
-    <p>Schema 版本：2，运行模式：{{ mode }}</p>
-    <p>类别筛选：{{ fmt(selection_category) }}，名称筛选：{{ fmt(selection_filter) }}</p>
+    <p>用例类别筛选：{{ fmt(selection_category) }}，用例名称筛选：{{ fmt(selection_filter) }}</p>
     <p>用例总数：{{ total }}，通过：{{ passed }}，失败：{{ failed }}</p>
     <p>性能退化阈值：{{ fmt(regression_threshold_pct, 2) }}%</p>
   </div>
   <img src="{{ chart_name }}" alt="课程版指令数图表">
   <div class="table-wrap"><table>
     <thead><tr>
-      <th>用例</th><th>类别</th><th>状态</th><th>解释器状态</th><th>TinyFive 状态</th><th>失败类型</th><th>编译返回码</th><th>编译日志</th><th>模拟后端</th><th>指令数</th>
-      <th>Benchmark 次数</th><th>Benchmark 停止原因</th><th>平均指令数</th><th>95% 置信区间</th><th>最小</th><th>最大</th>
-      <th>编译耗时(s)</th><th>模拟耗时(s)</th><th>总耗时(s)</th>
-      <th>基线</th><th>变化量</th><th>变化率(%)</th><th>退化阈值(%)</th><th>是否退化</th>
-      <th>预期输出</th><th>TinyFive 输出</th><th>输出匹配</th><th>汇编文件</th>
+      <th>用例</th><th>类别</th><th>解释器状态</th><th>TinyFive 状态</th><th>失败类型</th><th>TinyFive 动态指令数</th>
+      <th>基线</th><th>变化率(%)</th><th>是否退化</th>
+      <th>预期输出</th><th>解释器输出</th><th>TinyFive 输出</th>
     </tr></thead>
     <tbody>{% for r in results %}<tr>
       <td>{{ r.name }}</td><td>{{ r.category }}</td>
-      <td class="{{ 'pass' if r.status == 'PASS' else 'fail' }}">{{ r.status }}</td>
       <td>{{ r.interpreter_status }}</td><td>{{ r.tinyfive_status }}</td><td>{{ fmt(r.tinyfive_failure_kind) }}</td>
-      <td>{{ r.compile_returncode }}</td><td>{{ fmt(r.compile_log) }}</td>
-      <td>{{ r.backend }}</td><td>{{ r.instr_count }}</td>
-      <td>{{ fmt(r.benchmark_runs) }}</td><td>{{ fmt(r.benchmark_stopped_reason) }}</td><td>{{ fmt(r.avg_instr_count, 2) }}</td>
-      <td>{{ fmt(r.ci95_instr_count, 2, '±') }}</td><td>{{ fmt(r.min_instr_count) }}</td><td>{{ fmt(r.max_instr_count) }}</td>
-      <td>{{ fmt(r.compile_time_sec, 4) }}</td><td>{{ fmt(r.simulation_time_sec, 4) }}</td><td>{{ fmt(r.total_time_sec, 4) }}</td>
-      <td>{{ fmt(r.baseline_instr_count, 2) }}</td><td>{{ fmt(r.delta, 2) }}</td><td>{{ fmt(r.delta_pct, 2) }}</td>
-      <td>{{ fmt(r.threshold_pct, 2) }}</td><td>{{ fmt(r.regressed) }}</td>
-      <td>{{ r.expected }}</td><td>{{ r.actual }}</td><td>{{ r.matched }}</td><td>{{ r.asm }}</td>
+      <td>{{ fmt(r.instr_count) }}</td>
+      <td>{{ fmt(r.baseline_instr_count, 2) }}</td><td>{{ fmt(r.delta_pct, 2) }}</td><td>{{ fmt(r.regressed) }}</td>
+      <td>{{ fmt(r.expected) }}</td><td>{{ fmt(r.interpreter_actual) }}</td><td>{{ fmt(r.actual) }}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
 </body>
 </html>
 """)
-    mode = results[0]["mode"] if results else "normal"
     HTML_REPORT_FILE.write_text(
         template.render(
-            mode=mode,
             total=len(results),
             passed=passed,
             failed=failed,
@@ -922,10 +811,7 @@ def write_json_report(
     selection_filter=None,
     full_report=False,
 ):
-    mode = results[0]["mode"] if results else "normal"
     payload = {
-        "schema_version": 2,
-        "mode": mode,
         "report_level": "full" if full_report else "light",
         "regression_threshold_pct": regression_threshold_pct,
         "selection": {
@@ -948,6 +834,51 @@ def write_json_report(
     return JSON_REPORT_FILE
 
 
+def _case_performance_markdown(result):
+    if result["tinyfive_status"] != "PASS":
+        reason = result.get("simulation_error") or result.get("tinyfive_failure_kind")
+        return "".join([
+            "## 性能指标\n\n",
+            "TinyFive 未有效执行，不生成性能指标。\n\n",
+            f"- 原因: {_report_value(reason)}\n",
+            f"- 编译耗时(s): {result['compile_time_sec']:.6f}\n",
+            f"- 解释器耗时(s): {result['interpreter_time_sec']:.6f}\n\n",
+        ])
+
+    metric_labels = (
+        ("static_asm_instructions", "静态汇编指令数"),
+        ("machine_instructions", "编码后机器指令数"),
+        ("code_size_bytes", "代码大小(bytes)"),
+        ("dynamic_instructions", "TinyFive 动态指令数"),
+        ("dynamic_load", "动态 load"),
+        ("dynamic_store", "动态 store"),
+        ("dynamic_mul", "动态 mul"),
+        ("dynamic_add", "动态 add"),
+        ("dynamic_madd", "动态 madd"),
+        ("dynamic_branch", "动态 branch"),
+    )
+    lines = [
+        "## 性能指标\n\n",
+        "| 指标 | 当前值 | 基线 | 变化率(%) | 是否退化 |\n",
+        "|---|---:|---:|---:|---|\n",
+    ]
+    for key, label in metric_labels:
+        comparison = result["cost_model_comparison"].get(key, {})
+        lines.append(
+            f"| {label} | {_report_value(result['cost_model'].get(key))} | "
+            f"{_report_value(comparison.get('baseline'))} | "
+            f"{_report_value(comparison.get('delta_pct'))} | "
+            f"{_report_value(comparison.get('regressed'))} |\n"
+        )
+    lines.extend([
+        "\n## 耗时诊断\n\n",
+        f"- 编译耗时(s): {result['compile_time_sec']:.6f}\n",
+        f"- 解释器耗时(s): {result['interpreter_time_sec']:.6f}\n",
+        f"- TinyFive 模拟耗时(s): {result['simulation_time_sec']:.6f}\n\n",
+    ])
+    return "".join(lines)
+
+
 def write_case_reports(results):
     CASE_REPORT_DIR.mkdir(parents=True, exist_ok=True)
     for result in results:
@@ -962,52 +893,36 @@ def write_case_reports(results):
         if asm_path.exists():
             asm_text = asm_path.read_text(encoding="utf-8")
 
+        interpreter_match = (
+            result["interpreter_matched"]
+            if result["interpreter_status"] in {"PASS", "MISMATCH"}
+            else None
+        )
+        tinyfive_match = (
+            result["matched"]
+            if result["tinyfive_status"] in {"PASS", "MISMATCH"}
+            else None
+        )
         markdown_path.write_text("".join([
             f"# {result['name']} 测试详情\n\n",
             "## 基本信息\n\n",
             f"- 类别: {result['category']}\n",
             f"- DSL: `{result['path']}`\n",
             f"- 描述: {result['description']}\n",
-            f"- 总体状态: {result['status']}\n",
-            f"- 验证模式: {result['verification_backend']}\n\n",
-            "## 后端能力矩阵\n\n",
-            "| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败类型 | 错误 |\n",
-            "|---|---|---|---|---|---|\n",
+            f"- 总体状态: {result['status']}\n\n",
+            "## 后端结果\n\n",
+            f"- 预期输出: {_report_value(result['expected'])}\n\n",
+            "| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败原因 |\n",
+            "|---|---|---|---|---|\n",
             f"| DSLInterpreter | {result['interpreter_status']} | "
-            f"{_markdown_cell(result['interpreter_actual'])} | {result['interpreter_matched']} | "
-            f"{_report_value(result['interpreter_failure_kind'])} | "
+            f"{_markdown_cell(_report_value(result['interpreter_actual']))} | "
+            f"{_report_value(interpreter_match)} | "
             f"{_markdown_cell(_report_value(result['interpreter_error']))} |\n",
             f"| TinyFive | {result['tinyfive_status']} | "
-            f"{_markdown_cell(result['actual'])} | {result['matched']} | "
-            f"{_report_value(result['tinyfive_failure_kind'])} | "
+            f"{_markdown_cell(_report_value(result['actual']))} | "
+            f"{_report_value(tinyfive_match)} | "
             f"{_markdown_cell(_report_value(result['simulation_error']))} |\n\n",
-            f"- 期望输出: {result['expected']}\n",
-            f"- 两后端输出一致: {_report_value(result['backend_outputs_match'])}\n",
-            f"- TinyFive 输入 ABI 可用: {result['tinyfive_input_abi_supported']}\n",
-            f"- TinyFive 输入 ABI 说明: {_report_value(result['tinyfive_input_abi_reason'])}\n\n",
-            "## 性能指标\n\n",
-            f"- 静态汇编指令数: {_report_value(result['static_asm_instruction_count'])}\n",
-            f"- 编码后机器指令数: {_report_value(result['machine_code_instruction_count'])}\n",
-            f"- 代码大小(bytes): {_report_value(result['code_size_bytes'])}\n",
-            f"- TinyFive 动态执行指令数: {result['instr_count']}\n",
-            f"- TinyFive 分类计数: {result['perf_counters']}\n",
-            f"- 编译耗时(s): {result['compile_time_sec']:.6f}\n",
-            f"- 解释器耗时(s): {result['interpreter_time_sec']:.6f}\n",
-            f"- TinyFive 模拟耗时(s): {result['simulation_time_sec']:.6f}\n",
-            f"- 总耗时(s): {result['total_time_sec']:.6f}\n",
-            f"- 基线动态指令数: {_report_value(result['baseline_instr_count'])}\n",
-            f"- 动态指令变化率(%): {_report_value(result['delta_pct'])}\n",
-            f"- 是否退化: {_report_value(result['regressed'])}\n\n",
-            f"- Cost model 指标: {result['cost_model']}\n",
-            f"- Cost model 对比: {result['cost_model_comparison']}\n",
-            f"- Cost model 是否退化: {_report_value(result['cost_model_regressed'])}\n\n",
-            "## 编译信息\n\n",
-            f"- 命令: `{result['compile_command']}`\n",
-            f"- 返回码: {result['compile_returncode']}\n",
-            f"- 编译错误: {_report_value(result['compile_error'])}\n",
-            f"- 失败日志: {_report_value(result['compile_log'])}\n",
-            f"- 寄存器映射: `{result['register_map']}`\n",
-            f"- 汇编文件: `{result['asm']}`\n\n",
+            _case_performance_markdown(result),
             "## 生成汇编\n\n",
             "```asm\n",
             asm_text.rstrip(),
@@ -1102,10 +1017,8 @@ def select_dsl_files(test_dir, category=None, name_filter=None):
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Run ScratchV DSL benchmark suite.")
-    parser.add_argument("--benchmark", type=int, default=0, metavar="N",
-                        help="Run each case N times and report average instruction count.")
     parser.add_argument("--update-baseline", action="store_true",
-                        help="Write current benchmark averages to the baseline file.")
+                        help="Write current TinyFive instruction counts to the baseline file.")
     parser.add_argument("--full-report", action="store_true",
                         help="Also generate the optional HTML report and PNG chart.")
     parser.add_argument(
@@ -1144,7 +1057,7 @@ def main(argv=None):
         print("Cannot update a TinyFive cost-model baseline in interpreter-only mode.")
         return 2
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    baseline = load_baseline() if args.benchmark else {}
+    baseline = load_baseline()
 
     all_dsl_files = list(TEST_DIR.rglob("*.dsl"))
 
@@ -1243,6 +1156,14 @@ def main(argv=None):
                 "backend": "none",
                 "error": register_map_error,
             }
+        elif not input_abi_supported:
+            sim_result = {
+                "success": False,
+                "instr_count": None,
+                "return_value": None,
+                "backend": "skipped",
+                "error": input_abi_reason,
+            }
         elif args.verification_backend == "interpreter":
             sim_result = {
                 "success": False,
@@ -1283,23 +1204,13 @@ def main(argv=None):
             else None
         )
         static_asm_instruction_count = count_assembly_instructions(output_file)
-        benchmark_counts = []
-        benchmark_perf_samples = []
-        benchmark_summary = {
-            "runs": None,
-            "avg_instr_count": None,
-            "min_instr_count": None,
-            "max_instr_count": None,
-            "ci95_instr_count": None,
-        }
         regression = {
             "baseline_instr_count": None,
             "delta": None,
             "delta_pct": None,
-            "threshold_pct": None,
+            "threshold_pct": args.regression_threshold,
             "regressed": None,
         }
-        benchmark_stopped_reason = None
 
         tinyfive_status, tinyfive_failure_kind = classify_tinyfive_result(
             result,
@@ -1310,75 +1221,30 @@ def main(argv=None):
             register_map_error=register_map_error,
         )
 
-        if args.benchmark > 0:
-            regression["threshold_pct"] = args.regression_threshold
-            if args.verification_backend == "interpreter":
-                benchmark_stopped_reason = "benchmark skipped: TinyFive backend not selected"
-                benchmark_summary = summarize_benchmark_runs([])
-            elif not input_abi_supported:
-                benchmark_stopped_reason = "benchmark skipped: TinyFive input ABI unsupported"
-                benchmark_summary = summarize_benchmark_runs([])
-            elif result.returncode != 0 or not output_file.exists():
-                benchmark_stopped_reason = "benchmark skipped: compile failed"
-                benchmark_summary = summarize_benchmark_runs([])
-            elif sim_result.get("backend") == "timeout":
-                benchmark_stopped_reason = "benchmark skipped: initial simulation timeout"
-                benchmark_summary = summarize_benchmark_runs([])
-            elif not sim_result.get("success"):
-                benchmark_stopped_reason = "benchmark skipped: initial simulation failed"
-                benchmark_summary = summarize_benchmark_runs([])
-            else:
-                for run_index in range(1, args.benchmark + 1):
-                    benchmark_result = run_simulation(output_file, initial_registers)
-                    if benchmark_result.get("backend") == "timeout":
-                        benchmark_stopped_reason = (
-                            f"benchmark stopped: timeout on run {run_index}"
-                        )
-                        break
-                    if not benchmark_result.get("success"):
-                        benchmark_stopped_reason = (
-                            f"benchmark stopped: simulation failed on run {run_index}"
-                        )
-                        break
-                    benchmark_counts.append(benchmark_result.get("instr_count", 0))
-                    benchmark_perf_samples.append(
-                        benchmark_result.get("perf_counters") or {},
-                    )
-                benchmark_summary = summarize_benchmark_runs(benchmark_counts)
-
-            if benchmark_summary["avg_instr_count"] is not None and benchmark_stopped_reason is None:
-                regression["regressed"] = False
-
-            baseline_entry = baseline.get(dsl_file.stem)
-            if (
-                baseline_entry
-                and benchmark_summary["avg_instr_count"] is not None
-                and benchmark_stopped_reason is None
-            ):
+        baseline_entry = baseline.get(dsl_file.stem)
+        if tinyfive_status == "PASS":
+            regression["regressed"] = False
+            baseline_count = baseline_instruction_count(baseline_entry)
+            if baseline_count is not None:
                 regression = detect_regression(
-                    avg_instr_count=benchmark_summary["avg_instr_count"],
-                    baseline_instr_count=baseline_entry.get("avg_instr_count", 0.0),
+                    current_instr_count=sim_result.get("instr_count", 0),
+                    baseline_instr_count=baseline_count,
                     threshold_pct=args.regression_threshold,
                 )
 
-        average_perf_counters = summarize_perf_counters(benchmark_perf_samples)
         cost_model = build_cost_model_metrics(
             static_asm_instruction_count,
             sim_result,
-            avg_instr_count=benchmark_summary["avg_instr_count"],
-            avg_perf_counters=average_perf_counters,
         )
         cost_model_comparison = {}
         cost_model_regressed = None
         baseline_entry = baseline.get(dsl_file.stem)
         if (
-            args.benchmark > 0
-            and baseline_entry
-            and benchmark_summary["avg_instr_count"] is not None
-            and benchmark_stopped_reason is None
+            baseline_entry
+            and tinyfive_status == "PASS"
         ):
             baseline_cost_model = baseline_entry.get("cost_model") or {
-                "dynamic_instructions": baseline_entry.get("avg_instr_count"),
+                "dynamic_instructions": baseline_instruction_count(baseline_entry),
             }
             cost_model_comparison = detect_cost_model_regressions(
                 cost_model,
@@ -1397,7 +1263,6 @@ def main(argv=None):
         tinyfive_ok = (
             tinyfive_status == "PASS"
             and regression["regressed"] is not True
-            and benchmark_stopped_reason is None
         )
         interpreter_ok = (
             result.returncode == 0
@@ -1431,7 +1296,6 @@ def main(argv=None):
                 )
 
         results.append({
-            "mode": "benchmark" if args.benchmark > 0 else "normal",
             "name": dsl_file.stem,
             "category": dsl_file.parent.name,
             "path": _report_path(dsl_file),
@@ -1479,12 +1343,6 @@ def main(argv=None):
             "compile_time_sec": compile_time_sec,
             "simulation_time_sec": simulation_time_sec,
             "total_time_sec": total_time_sec,
-            "benchmark_runs": benchmark_summary["runs"],
-            "benchmark_stopped_reason": benchmark_stopped_reason,
-            "avg_instr_count": benchmark_summary["avg_instr_count"],
-            "min_instr_count": benchmark_summary["min_instr_count"],
-            "max_instr_count": benchmark_summary["max_instr_count"],
-            "ci95_instr_count": benchmark_summary["ci95_instr_count"],
             "baseline_instr_count": regression["baseline_instr_count"],
             "delta": regression["delta"],
             "delta_pct": regression["delta_pct"],
@@ -1498,7 +1356,7 @@ def main(argv=None):
     print(f"Passed: {passed}")
     print(f"Failed: {failed}")
 
-    if args.benchmark and args.update_baseline:
+    if args.update_baseline:
         save_baseline(
             results,
             preserve_existing=bool(args.category or args.name_filter),

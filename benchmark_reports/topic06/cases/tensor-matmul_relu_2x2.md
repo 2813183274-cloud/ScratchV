@@ -6,47 +6,23 @@
 - DSL: `tests/topic06/cases/tensor/matmul_relu_2x2.dsl`
 - 描述: Compute a 2x2 matmul and then apply ReLU to its result.
 - 总体状态: FAIL
-- 验证模式: both
 
-## 后端能力矩阵
+## 后端结果
 
-| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败类型 | 错误 |
-|---|---|---|---|---|---|
-| DSLInterpreter | PASS | [[0.0, 2.0], [0.0, 4.0]] | True | null | null |
-| TinyFive | UNSUPPORTED | 0 | False | input_abi_unsupported | null |
+- 预期输出: [[0, 2], [0, 4]]
 
-- 期望输出: [[0, 2], [0, 4]]
-- 两后端输出一致: null
-- TinyFive 输入 ABI 可用: False
-- TinyFive 输入 ABI 说明: non-scalar TinyFive input ABI is unavailable: A, B
+| 后端 | 状态 | 实际输出 | 与期望匹配 | 失败原因 |
+|---|---|---|---|---|
+| DSLInterpreter | PASS | [[0.0, 2.0], [0.0, 4.0]] | True | null |
+| TinyFive | UNSUPPORTED | null | null | non-scalar TinyFive input ABI is unavailable: A, B |
 
 ## 性能指标
 
-- 静态汇编指令数: 4
-- 编码后机器指令数: 7
-- 代码大小(bytes): 28
-- TinyFive 动态执行指令数: 5
-- TinyFive 分类计数: {'total': 5, 'load': 0, 'store': 0, 'mul': 1, 'add': 2, 'madd': 0, 'branch': 1}
-- 编译耗时(s): 0.097070
-- 解释器耗时(s): 0.125902
-- TinyFive 模拟耗时(s): 0.159231
-- 总耗时(s): 0.383122
-- 基线动态指令数: null
-- 动态指令变化率(%): null
-- 是否退化: null
+TinyFive 未有效执行，不生成性能指标。
 
-- Cost model 指标: {'static_asm_instructions': 4, 'machine_instructions': 7, 'code_size_bytes': 28, 'dynamic_instructions': 5, 'dynamic_load': 0, 'dynamic_store': 0, 'dynamic_mul': 1, 'dynamic_add': 2, 'dynamic_madd': 0, 'dynamic_branch': 1}
-- Cost model 对比: {}
-- Cost model 是否退化: null
-
-## 编译信息
-
-- 命令: `'D:\anaconda3\python.exe' -m scratchv.main 'D:\PycharmProjects\ScratchV\ScratchV\tests\topic06\cases\tensor\matmul_relu_2x2.dsl' -o 'D:\PycharmProjects\ScratchV\ScratchV\build\topic06\matmul_relu_2x2.s' --optimize all --emit-register-map 'D:\PycharmProjects\ScratchV\ScratchV\build\topic06\matmul_relu_2x2.registers.json'`
-- 返回码: 0
-- 编译错误: null
-- 失败日志: null
-- 寄存器映射: `build/topic06/matmul_relu_2x2.registers.json`
-- 汇编文件: `build/topic06/matmul_relu_2x2.s`
+- 原因: non-scalar TinyFive input ABI is unavailable: A, B
+- 编译耗时(s): 0.101562
+- 解释器耗时(s): 0.128895
 
 ## 生成汇编
 

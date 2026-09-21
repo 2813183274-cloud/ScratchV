@@ -1,5 +1,4 @@
 {
-  "mode": "benchmark",
   "name": "add_chain",
   "category": "elementwise",
   "path": "tests/topic06/cases/elementwise/add_chain.dsl",
@@ -17,7 +16,7 @@
   "interpreter_matched": true,
   "interpreter_error": null,
   "interpreter_failure_kind": null,
-  "interpreter_time_sec": 0.13167809997685254,
+  "interpreter_time_sec": 0.13125719991512597,
   "backend_outputs_match": true,
   "tinyfive_status": "PASS",
   "tinyfive_failure_kind": null,
@@ -48,13 +47,13 @@
     "static_asm_instructions": 4,
     "machine_instructions": 4,
     "code_size_bytes": 16,
-    "dynamic_instructions": 4.0,
-    "dynamic_load": 0.0,
-    "dynamic_store": 0.0,
-    "dynamic_mul": 0.0,
-    "dynamic_add": 3.0,
-    "dynamic_madd": 0.0,
-    "dynamic_branch": 0.0
+    "dynamic_instructions": 4,
+    "dynamic_load": 0,
+    "dynamic_store": 0,
+    "dynamic_mul": 0,
+    "dynamic_add": 3,
+    "dynamic_madd": 0,
+    "dynamic_branch": 0
   },
   "cost_model_comparison": {
     "static_asm_instructions": {
@@ -79,51 +78,51 @@
       "regressed": false
     },
     "dynamic_instructions": {
-      "current": 4.0,
-      "baseline": 4.0,
-      "delta": 0.0,
+      "current": 4,
+      "baseline": 4,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_load": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_store": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_mul": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_add": {
-      "current": 3.0,
-      "baseline": 3.0,
-      "delta": 0.0,
+      "current": 3,
+      "baseline": 3,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_madd": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_branch": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     }
@@ -134,17 +133,11 @@
   "compile_error": null,
   "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\elementwise\\add_chain.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_chain.registers.json'",
   "compile_log": null,
-  "compile_time_sec": 0.09103920008055866,
-  "simulation_time_sec": 0.1631825000513345,
-  "total_time_sec": 0.8662076999899,
-  "benchmark_runs": 3,
-  "benchmark_stopped_reason": null,
-  "avg_instr_count": 4.0,
-  "min_instr_count": 4,
-  "max_instr_count": 4,
-  "ci95_instr_count": 0.0,
-  "baseline_instr_count": 4.0,
-  "delta": 0.0,
+  "compile_time_sec": 0.09220999991521239,
+  "simulation_time_sec": 0.15771140018478036,
+  "total_time_sec": 0.38213529996573925,
+  "baseline_instr_count": 4,
+  "delta": 0,
   "delta_pct": 0.0,
   "threshold_pct": 5.0,
   "regressed": false,

@@ -153,7 +153,6 @@ def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
     assert exit_code == 0
     payload = json.loads((report_dir / "report.json").read_text(encoding="utf-8"))
     result = payload["results"][0]
-    assert payload["schema_version"] == 2
     assert result["interpreter_status"] == "PASS"
     assert result["tinyfive_status"] == "PASS"
     assert result["backend_outputs_match"] is True
@@ -171,7 +170,7 @@ def test_tinyfive_input_abi_marks_tensor_inputs_unsupported():
     assert "A" in reason
 
 
-def test_cost_model_baseline_uses_versioned_schema(tmp_path, monkeypatch):
+def test_cost_model_baseline_stores_current_metrics(tmp_path, monkeypatch):
     runner = _load_runner()
     baseline_file = tmp_path / "baseline.json"
     monkeypatch.setattr(runner, "BASELINE_FILE", baseline_file)
@@ -179,8 +178,7 @@ def test_cost_model_baseline_uses_versioned_schema(tmp_path, monkeypatch):
     runner.save_baseline([{
         "name": "relu_only",
         "category": "activation",
-        "avg_instr_count": 5.0,
-        "benchmark_runs": 3,
+        "instr_count": 5,
         "tinyfive_status": "PASS",
         "cost_model": {
             "static_asm_instructions": 3,
@@ -191,8 +189,8 @@ def test_cost_model_baseline_uses_versioned_schema(tmp_path, monkeypatch):
     }])
 
     payload = json.loads(baseline_file.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 2
     assert payload["primary_metric"] == "dynamic_instructions"
+    assert payload["cases"]["relu_only"]["dynamic_instruction_count"] == 5
     assert payload["cases"]["relu_only"]["cost_model"]["code_size_bytes"] == 24
     assert runner.load_baseline() == payload["cases"]
 
@@ -203,7 +201,6 @@ def test_interpreter_only_mode_cannot_replace_cost_model_baseline(tmp_path, monk
     monkeypatch.setattr(runner, "BASELINE_FILE", baseline_file)
 
     exit_code = runner.main([
-        "--benchmark", "1",
         "--update-baseline",
         "--verification-backend", "interpreter",
     ])

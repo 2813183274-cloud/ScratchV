@@ -1,5 +1,4 @@
 {
-  "mode": "benchmark",
   "name": "add_relu_relu",
   "category": "activation",
   "path": "tests/topic06/cases/activation/add_relu_relu.dsl",
@@ -17,7 +16,7 @@
   "interpreter_matched": true,
   "interpreter_error": null,
   "interpreter_failure_kind": null,
-  "interpreter_time_sec": 0.13450649986043572,
+  "interpreter_time_sec": 0.12753900000825524,
   "backend_outputs_match": true,
   "tinyfive_status": "PASS",
   "tinyfive_failure_kind": null,
@@ -47,13 +46,13 @@
     "static_asm_instructions": 5,
     "machine_instructions": 11,
     "code_size_bytes": 44,
-    "dynamic_instructions": 7.0,
-    "dynamic_load": 0.0,
-    "dynamic_store": 0.0,
-    "dynamic_mul": 0.0,
-    "dynamic_add": 4.0,
-    "dynamic_madd": 0.0,
-    "dynamic_branch": 2.0
+    "dynamic_instructions": 7,
+    "dynamic_load": 0,
+    "dynamic_store": 0,
+    "dynamic_mul": 0,
+    "dynamic_add": 4,
+    "dynamic_madd": 0,
+    "dynamic_branch": 2
   },
   "cost_model_comparison": {
     "static_asm_instructions": {
@@ -78,51 +77,51 @@
       "regressed": false
     },
     "dynamic_instructions": {
-      "current": 7.0,
-      "baseline": 7.0,
-      "delta": 0.0,
+      "current": 7,
+      "baseline": 7,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_load": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_store": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_mul": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_add": {
-      "current": 4.0,
-      "baseline": 4.0,
-      "delta": 0.0,
+      "current": 4,
+      "baseline": 4,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_madd": {
-      "current": 0.0,
-      "baseline": 0.0,
-      "delta": 0.0,
+      "current": 0,
+      "baseline": 0,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     },
     "dynamic_branch": {
-      "current": 2.0,
-      "baseline": 2.0,
-      "delta": 0.0,
+      "current": 2,
+      "baseline": 2,
+      "delta": 0,
       "delta_pct": 0.0,
       "regressed": false
     }
@@ -133,17 +132,11 @@
   "compile_error": null,
   "compile_command": "'D:\\anaconda3\\python.exe' -m scratchv.main 'D:\\PycharmProjects\\ScratchV\\ScratchV\\tests\\topic06\\cases\\activation\\add_relu_relu.dsl' -o 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_relu_relu.s' --optimize all --emit-register-map 'D:\\PycharmProjects\\ScratchV\\ScratchV\\build\\topic06\\add_relu_relu.registers.json'",
   "compile_log": null,
-  "compile_time_sec": 0.09451190009713173,
-  "simulation_time_sec": 0.16227869992144406,
-  "total_time_sec": 0.8839708000887185,
-  "benchmark_runs": 3,
-  "benchmark_stopped_reason": null,
-  "avg_instr_count": 7.0,
-  "min_instr_count": 7,
-  "max_instr_count": 7,
-  "ci95_instr_count": 0.0,
-  "baseline_instr_count": 7.0,
-  "delta": 0.0,
+  "compile_time_sec": 0.09098799992352724,
+  "simulation_time_sec": 0.15856679994612932,
+  "total_time_sec": 0.39756660000421107,
+  "baseline_instr_count": 7,
+  "delta": 0,
   "delta_pct": 0.0,
   "threshold_pct": 5.0,
   "regressed": false,

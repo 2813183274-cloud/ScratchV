@@ -67,7 +67,7 @@ bench:
 # ── Topic 06 DSL correctness + TinyFive benchmark ─────────────────────────
 
 bench-topic06:
-	python3 scripts/run_topic06_benchmarks.py --benchmark 3
+	python3 scripts/run_topic06_benchmarks.py
 
 # ── CNN RISC-V 编译 + 估算 ────────────────────────────────────────────────
 
