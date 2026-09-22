@@ -18,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TEST_DIR = PROJECT_ROOT / "tests" / "topic06" / "cases"
 BUILD_DIR = PROJECT_ROOT / "build" / "topic06"
 REPORT_DIR = PROJECT_ROOT / "benchmark_reports" / "topic06"
+METADATA_FILE = REPORT_DIR / "metadata.json"
 REPORT_FILE = REPORT_DIR / "report.md"
 HTML_REPORT_FILE = REPORT_DIR / "report.html"
 JSON_REPORT_FILE = REPORT_DIR / "report.json"
@@ -690,6 +691,13 @@ def _mermaid_instruction_chart(results):
     y_max = max(1, math.ceil(max(value for _, value in measured) * 1.1))
     return (
         "```mermaid\n"
+        "---\n"
+        "config:\n"
+        "    xyChart:\n"
+        "        width: 1200\n"
+        "        xAxis:\n"
+        "            labelRotation: -45\n"
+        "---\n"
         "xychart-beta\n"
         "    title \"TinyFive Dynamic Instruction Counts\"\n"
         f"    x-axis [{labels}]\n"
@@ -854,6 +862,40 @@ def write_json_report(
         encoding="utf-8",
     )
     return JSON_REPORT_FILE
+
+
+def write_test_metadata(
+    results,
+    passed,
+    failed,
+    regression_threshold_pct=REGRESSION_THRESHOLD_PCT,
+    selection_category=None,
+    selection_filter=None,
+):
+    """Persist runner output without coupling test execution to report rendering."""
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 1,
+        "artifact_type": "topic06_test_metadata",
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "regression_threshold_pct": regression_threshold_pct,
+        "selection": {
+            "category": selection_category,
+            "filter": selection_filter,
+        },
+        "summary": {
+            "total": len(results),
+            "passed": passed,
+            "failed": failed,
+        },
+        "backend_matrix": summarize_backend_matrix(results),
+        "results": results,
+    }
+    METADATA_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return METADATA_FILE
 
 
 def _case_performance_markdown(result):
@@ -1040,8 +1082,6 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Run ScratchV DSL benchmark suite.")
     parser.add_argument("--update-baseline", action="store_true",
                         help="Write current TinyFive instruction counts to the baseline file.")
-    parser.add_argument("--full-report", action="store_true",
-                        help="Also generate the optional HTML report and PNG chart.")
     parser.add_argument(
         "--regression-threshold",
         type=non_negative_float,
@@ -1384,15 +1424,15 @@ def main(argv=None):
         )
         print(f"Baseline written to {BASELINE_FILE}")
 
-    write_report(
+    metadata_path = write_test_metadata(
         results,
         passed,
         failed,
         regression_threshold_pct=args.regression_threshold,
         selection_category=args.category,
         selection_filter=args.name_filter,
-        full_report=args.full_report,
     )
+    print(f"Metadata written to {metadata_path}")
     return 1 if args.fail_on_test_failure and failed else 0
 
 

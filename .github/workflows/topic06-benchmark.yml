@@ -33,7 +33,9 @@ jobs:
           python scripts/run_topic06_benchmarks.py --category loop --fail-on-test-failure
 
       - name: Generate full diagnostic benchmark report
-        run: python scripts/run_topic06_benchmarks.py --full-report
+        run: |
+          python scripts/run_topic06_benchmarks.py
+          python scripts/generate_topic06_report.py --full-report
 
       - name: Publish benchmark summary
         if: always()
@@ -54,6 +56,7 @@ jobs:
           path: |
             benchmark_reports/topic06/report.md
             benchmark_reports/topic06/report.json
+            benchmark_reports/topic06/metadata.json
             benchmark_reports/topic06/report.html
             benchmark_reports/topic06/course_report_instructions.png
             benchmark_reports/topic06/cases/

@@ -10,10 +10,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CASE_DIR = ROOT / "tests" / "topic06" / "cases"
 RUNNER_PATH = ROOT / "scripts" / "run_topic06_benchmarks.py"
+GENERATOR_PATH = ROOT / "scripts" / "generate_topic06_report.py"
 
 
 def _load_runner():
     spec = importlib.util.spec_from_file_location("topic06_runner", RUNNER_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_generator():
+    spec = importlib.util.spec_from_file_location("topic06_report_generator", GENERATOR_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -132,11 +141,14 @@ def test_interpreter_marks_control_flow_as_unsupported():
         assert not result["success"]
 
 
-def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
+def test_runner_metadata_drives_independent_report_generation(tmp_path, monkeypatch):
     runner = _load_runner()
+    generator = _load_generator()
+    generator.benchmark = runner
     report_dir = tmp_path / "reports"
     monkeypatch.setattr(runner, "BUILD_DIR", tmp_path / "build")
     monkeypatch.setattr(runner, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(runner, "METADATA_FILE", report_dir / "metadata.json")
     monkeypatch.setattr(runner, "REPORT_FILE", report_dir / "report.md")
     monkeypatch.setattr(runner, "JSON_REPORT_FILE", report_dir / "report.json")
     monkeypatch.setattr(runner, "HTML_REPORT_FILE", report_dir / "report.html")
@@ -151,6 +163,18 @@ def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
     ])
 
     assert exit_code == 0
+    assert (report_dir / "metadata.json").exists()
+    assert not (report_dir / "report.md").exists()
+    metadata = json.loads((report_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["schema_version"] == 1
+    assert metadata["artifact_type"] == "topic06_test_metadata"
+
+    generate_exit_code = generator.main([
+        "--metadata", str(report_dir / "metadata.json"),
+        "--output-dir", str(report_dir),
+    ])
+
+    assert generate_exit_code == 0
     payload = json.loads((report_dir / "report.json").read_text(encoding="utf-8"))
     result = payload["results"][0]
     assert result["interpreter_status"] == "PASS"
@@ -159,7 +183,10 @@ def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
     assert result["static_asm_instruction_count"] > 0
     markdown_report = (report_dir / "report.md").read_text(encoding="utf-8")
     assert "```mermaid" in markdown_report
+    assert "width: 1200" in markdown_report
+    assert "labelRotation: -45" in markdown_report
     assert "xychart-beta" in markdown_report
+    assert 'x-axis ["relu_only"]' in markdown_report
     assert "course_report_instructions.png" not in markdown_report
     assert (report_dir / "cases/activation-relu_only.md").exists()
     assert (report_dir / "cases/activation-relu_only.json").exists()

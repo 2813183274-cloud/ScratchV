@@ -68,6 +68,7 @@ bench:
 
 bench-topic06:
 	python3 scripts/run_topic06_benchmarks.py
+	python3 scripts/generate_topic06_report.py
 
 # ── CNN RISC-V 编译 + 估算 ────────────────────────────────────────────────
 
