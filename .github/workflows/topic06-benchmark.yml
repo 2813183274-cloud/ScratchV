@@ -39,20 +39,9 @@ jobs:
         if: always()
         run: |
           if [ -f benchmark_reports/topic06/report.md ]; then
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              report_repository="${{ github.event.pull_request.head.repo.full_name }}"
-              report_revision="${{ github.event.pull_request.head.sha }}"
-            else
-              report_repository="${{ github.repository }}"
-              report_revision="${{ github.sha }}"
-            fi
-
-            raw_base="https://raw.githubusercontent.com/${report_repository}/${report_revision}/benchmark_reports/topic06"
-            browse_base="https://github.com/${report_repository}/tree/${report_revision}/benchmark_reports/topic06"
-            sed \
-              -e "s#](course_report_instructions.png)#](${raw_base}/course_report_instructions.png)#g" \
-              -e "s#](cases/)#](${browse_base}/cases)#g" \
-              benchmark_reports/topic06/report.md >> "$GITHUB_STEP_SUMMARY"
+            cat benchmark_reports/topic06/report.md >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> 完整 HTML、JSON、PNG 和单用例报告请下载本次运行的 \`topic06-benchmark-reports\` Artifact。" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Topic 06 report was not generated." >> "$GITHUB_STEP_SUMMARY"
           fi

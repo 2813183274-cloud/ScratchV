@@ -673,6 +673,32 @@ def _report_value(value, precision=None, prefix=""):
     return f"{prefix}{value}"
 
 
+def _mermaid_instruction_chart(results):
+    measured = [
+        (result["name"], result["instr_count"])
+        for result in results
+        if result["instr_count"] is not None
+    ]
+    if not measured:
+        return "本次运行没有可展示的 TinyFive 动态指令数据。\n"
+
+    labels = ", ".join(
+        f'"{name.replace(chr(34), chr(92) + chr(34))}"'
+        for name, _ in measured
+    )
+    values = ", ".join(str(value) for _, value in measured)
+    y_max = max(1, math.ceil(max(value for _, value in measured) * 1.1))
+    return (
+        "```mermaid\n"
+        "xychart-beta\n"
+        "    title \"TinyFive Dynamic Instruction Counts\"\n"
+        f"    x-axis [{labels}]\n"
+        f"    y-axis \"Instructions\" 0 --> {y_max}\n"
+        f"    bar [{values}]\n"
+        "```\n"
+    )
+
+
 def generate_unified_report_text_cn(
     results,
     passed,
@@ -680,7 +706,6 @@ def generate_unified_report_text_cn(
     regression_threshold_pct=REGRESSION_THRESHOLD_PCT,
     selection_category=None,
     selection_filter=None,
-    include_chart=False,
 ):
     pass_rate = 0.0 if not results else passed / len(results) * 100.0
     lines = [
@@ -717,15 +742,12 @@ def generate_unified_report_text_cn(
             f"{_markdown_cell(_report_value(result['actual']))} |\n"
         )
 
-    if include_chart:
-        lines.extend([
-            "\n## 性能图表\n\n",
-            f"![课程版指令数图表]({CHART_FILE.name})\n\n",
-        ])
     lines.extend([
+        "\n## 性能图表\n\n",
+        _mermaid_instruction_chart(results),
         "\n## 单用例报告\n\n",
-        "每个用例的后端结果、性能指标、耗时诊断和生成汇编见 "
-        "[`cases/`](cases/) 目录。\n",
+        "每个用例的后端结果、性能指标、耗时诊断和生成汇编位于 "
+        "`benchmark_reports/topic06/cases/` 目录。\n",
     ])
     return "".join(lines)
 
@@ -954,7 +976,6 @@ def write_report(
             regression_threshold_pct=regression_threshold_pct,
             selection_category=selection_category,
             selection_filter=selection_filter,
-            include_chart=chart_path is not None,
         ),
         encoding="utf-8",
     )

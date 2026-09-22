@@ -157,6 +157,10 @@ def test_runner_writes_independent_backend_case_report(tmp_path, monkeypatch):
     assert result["tinyfive_status"] == "PASS"
     assert result["backend_outputs_match"] is True
     assert result["static_asm_instruction_count"] > 0
+    markdown_report = (report_dir / "report.md").read_text(encoding="utf-8")
+    assert "```mermaid" in markdown_report
+    assert "xychart-beta" in markdown_report
+    assert "course_report_instructions.png" not in markdown_report
     assert (report_dir / "cases/activation-relu_only.md").exists()
     assert (report_dir / "cases/activation-relu_only.json").exists()
 
