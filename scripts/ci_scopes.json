@@ -28,7 +28,11 @@
     "tests/test_w2_*.py",
     "tests/test_numeric_metrics.py",
     "tests/test_numeric_summary.py",
-    ".github/workflows/llm-deploy.yml"
+    ".github/workflows/llm-deploy.yml",
+    "scripts/summarize_w3_ci.py",
+    "tests/test_w3_actions_summary.py",
+    "tests/test_w3_workflows.py",
+    ".github/workflows/w3-*.yml"
   ],
   "w4": []
 }
